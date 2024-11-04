@@ -1,7 +1,5 @@
 package ru.cwcode.tkach.minedi.utils;
 
-import ru.cwcode.tkach.minedi.annotation.Required;
-
 import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;

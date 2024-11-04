@@ -6,7 +6,7 @@
     <parent>
         <groupId>ru.cwcode.tkach.minedi</groupId>
         <artifactId>MineDI</artifactId>
-        <version>1.0.0</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>Common</artifactId>

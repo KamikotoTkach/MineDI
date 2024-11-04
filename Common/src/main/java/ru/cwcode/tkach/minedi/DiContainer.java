@@ -1,52 +1,51 @@
 package ru.cwcode.tkach.minedi;
 
-import org.jetbrains.annotations.NotNull;
-import ru.cwcode.tkach.minedi.annotation.*;
+import ru.cwcode.tkach.minedi.annotation.Component;
+import ru.cwcode.tkach.minedi.annotation.Lazy;
+import ru.cwcode.tkach.minedi.annotation.Required;
 import ru.cwcode.tkach.minedi.data.BeanDependency;
-import ru.cwcode.tkach.minedi.data.ComponentData;
+import ru.cwcode.tkach.minedi.data.BeanData;
+import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 public class DiContainer {
+  private static final Object LAZY_OBJECT = new Object();
   final ThreadLocal<LinkedHashSet<Class<?>>> creatingStack = ThreadLocal.withInitial(LinkedHashSet::new);
-  private final Object LAZY_OBJECT = new Object();
+  final DiApplication application;
   
   ClassScanner scanner;
   Set<Class<?>> classes;
-  HashMap<Class<?>, ComponentData> beans = new HashMap<>();
+  HashMap<Class<?>, BeanData> beans = new HashMap<>();
   HashMap<Class<?>, Object> singletons = new HashMap<>();
   
-  public DiContainer(ClassScanner scanner) {
+  public DiContainer(ClassScanner scanner, DiApplication application) {
     this.scanner = scanner;
+    this.application = application;
   }
   
-  protected void registerComponents() {
-    classes.forEach(this::registerBean);
-    beans.forEach(this::searchForDependencies);
-    this.constructSingletons();
+  public <T> Optional<T> get(Class<T> type) {
+    Object value = singletons.get(type);
+    
+    if (value == LAZY_OBJECT) {
+      return Optional.of(create(type));
+    }
+    
+    return Optional.ofNullable((T) value);
   }
   
-  protected void scanClasses() {
-    classes = scanner.scan();
+  public boolean isBean(Class<?> clazz) {
+    return beans.containsKey(clazz);
   }
   
-  private void constructSingletons() {
-    beans.forEach((clazz, data) -> {
-      if (!data.isAnnotationPresent(Lazy.class)) {
-        create(clazz);
-      } else {
-        singletons.put(clazz, LAZY_OBJECT);
-      }
-    });
-    singletons.forEach((k, v) -> pupulateFields(k, beans.get(k)));
+  public void registerSingleton(Object bean, Class<?> as) {
+    singletons.put(as, bean);
   }
   
-  private <T> T create(Class<T> clazz) {
+  public <T> T create(Class<T> clazz) {
     Object alreadyCreated = singletons.get(clazz);
     if (alreadyCreated != null && alreadyCreated != LAZY_OBJECT) return (T) alreadyCreated;
     
@@ -65,114 +64,82 @@ public class DiContainer {
     return created;
   }
   
+  public BeanData getData(Class<?> clazz) {
+    return beans.get(clazz);
+  }
+  
+  protected void registerComponents() {
+    classes.forEach(this::registerComponent);
+    beans.forEach(this::searchForDependencies);
+    this.constructSingletons();
+  }
+  
+  protected void scanClasses() {
+    classes = scanner.scan();
+  }
+  
+  private void constructSingletons() {
+    beans.forEach((clazz, data) -> {
+      if (!data.isAnnotationPresent(Lazy.class)) {
+        create(clazz);
+      } else {
+        singletons.put(clazz, LAZY_OBJECT);
+      }
+    });
+    
+    singletons.keySet().forEach(this::populateFields);
+  }
+  
   private <T> T create0(Class<T> clazz) {
-    ComponentData data = beans.get(clazz);
+    BeanData data = beans.get(clazz);
     
-    List<?> dependencies = data.getDependencies().stream()
-                               .filter(BeanDependency::isStartupRequired)
-                               .map(x -> create(x.getClazz()))
-                               .toList();
-    
-    T instance = createInstance(clazz, dependencies);
+    T instance = (T) application.getBeanConstructors().construct(clazz, data);
     
     singletons.put(clazz, instance);
     
     try {
-      pupulateFields(instance, data);
+      populateFields(instance);
     } catch (Exception e) {
       singletons.remove(clazz);
       throw new RuntimeException(e);
     }
     
+    application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
+    
     return instance;
   }
   
-  private void pupulateFields(Object instance, ComponentData data) {
+  private void populateFields(Object instance) {
     if (instance == LAZY_OBJECT) return;
     
     Arrays.stream(instance.getClass().getDeclaredFields())
           .filter(x -> isBean(x.getType()))
           .forEach(x -> {
-            Object value;
-            if (data.isRequired(x.getType())) {
-              value = get(x.getType()).orElseThrow(() -> new RuntimeException("No dependency found for '%s' while populating bean '%s'".formatted(instance.getClass(), x.getType())));
-            } else {
-              value = get(x.getType()).orElse(null);
-            }
-            
-            if (value == null) return;
-            
             try {
               x.setAccessible(true);
-              Object currentValue = x.get(instance);
-              if (value == null || currentValue != null) return;
+              if (x.get(instance) != null) return;
               
-              x.setAccessible(true);
-              x.set(instance, value);
+              x.set(instance, create(x.getType()));
             } catch (IllegalAccessException e) {
               throw new RuntimeException(e);
             }
           });
   }
   
-  protected <T> Optional<T> get(Class<T> type) {
-    Object value = getIfCreated(type);
-    
-    if (value == LAZY_OBJECT) {
-      return Optional.of(create(type));
-    }
-    
-    return Optional.ofNullable((T) value);
-  }
-  
-  protected <T> T getIfCreated(Class<T> type) {
-    return (T) singletons.get(type);
-  }
-  
-  private <T> T createInstance(Class<T> clazz, List<?> providedDependencies) {
-    Constructor<?> constructor = clazz.getDeclaredConstructors()[0];
-    constructor.setAccessible(true);
-    
-    Class<?>[] parameterTypes = constructor.getParameterTypes();
-    Object[] parameters = new Object[parameterTypes.length];
-    
-    for (int i = 0; i < parameterTypes.length; i++) {
-      Class<?> parameterType = parameterTypes[i];
-      parameters[i] = findDependency(providedDependencies, parameterType)
-        .orElseThrow(() -> new RuntimeException("No dependency found for '%s' while constructing bean '%s'".formatted(parameterType, clazz.getName())));
-    }
-    
-    try {
-      return (T) constructor.newInstance(parameters);
-    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-      throw new RuntimeException(e);
-    }
-  }
-  
-  private void registerBean(Class<?> clazz) {
+  private void registerComponent(Class<?> clazz) {
     Set<Annotation> annotations = ReflectionUtils.getAnnotations(clazz);
     
     if (annotations.stream().anyMatch(x -> x.annotationType().equals(Component.class))) {
-      beans.put(clazz, new ComponentData(annotations));
+      beans.put(clazz, new BeanData(annotations));
     }
   }
   
-  private void searchForDependencies(Class<?> clazz, ComponentData componentData) {
+  private void searchForDependencies(Class<?> clazz, BeanData beanData) {
     List<BeanDependency> dependencies = Arrays.stream(clazz.getDeclaredFields())
                                               .filter(x -> isBean(x.getType()))
                                               .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))
                                               .toList();
     
-    componentData.setDependencies(dependencies);
-  }
-  
-  private boolean isBean(Class<?> clazz) {
-    return beans.containsKey(clazz);
-  }
-  
-  private static @NotNull Optional<?> findDependency(List<?> dependencies, Class<?> type) {
-    return dependencies.stream()
-                       .filter(type::isInstance)
-                       .findFirst();
+    beanData.setDependencies(dependencies);
   }
 }

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import ru.cwcode.tkach.minedi.DiApplication;
 
-import java.net.URISyntaxException;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -14,8 +13,9 @@ public class TestInjection {
   static DiApplication application;
   
   @BeforeAll
-  public static void init() throws URISyntaxException {
+  public static void init() {
     application = new DiApplication(new TestClassScanner("target/test-classes/"));
+    application.start();
   }
   
   @Test
