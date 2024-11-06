@@ -23,6 +23,7 @@ public class PaperPlatform extends Bootstrap {
   
   YmlConfigManager ymlConfigManager;
   YmlRepositoryManager ymlRepositoryManager;
+  PaperExtension paperExtension;
   
   Logger logger;
   
@@ -41,7 +42,7 @@ public class PaperPlatform extends Bootstrap {
     logger = getLogger();
     
     diApplication = new DiApplication(getFile(), getClass().getPackageName());
-    diApplication.registerExtension(new PaperExtension(this));
+    diApplication.registerExtension(paperExtension = new PaperExtension(this));
     
     ymlConfigManager = new YmlConfigManager(getConfigPlatform(), new ConfigCreator(diApplication));
     ymlRepositoryManager = new YmlRepositoryManager(ymlConfigManager);
@@ -76,6 +77,7 @@ public class PaperPlatform extends Bootstrap {
   @Override
   public void onEnable() {
     Bukkit.getPluginManager().registerEvents(new ReloadCatcher(), this);
+    paperExtension.onPluginEnable();
     
     super.onEnable();
   }
