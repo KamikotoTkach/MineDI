@@ -1,8 +1,10 @@
 package ru.cwcode.tkach.minedi.data;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Getter
+@EqualsAndHashCode
 public class BeanDependency {
   Class<?> clazz;
   boolean startupRequired;

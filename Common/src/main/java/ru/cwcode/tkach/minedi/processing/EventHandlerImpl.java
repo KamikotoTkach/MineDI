@@ -2,6 +2,7 @@ package ru.cwcode.tkach.minedi.processing;
 
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.processing.event.Event;
+import ru.cwcode.tkach.minedi.processing.processor.BeanEventProcessor;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 import ru.cwcode.tkach.minedi.processing.processor.MethodAnnotationProcessor;
 
@@ -16,6 +17,7 @@ public class EventHandlerImpl implements EventHandler {
     this.application = application;
     
     processors.add(new MethodAnnotationProcessor());
+    processors.add(new BeanEventProcessor());
   }
   
   @Override

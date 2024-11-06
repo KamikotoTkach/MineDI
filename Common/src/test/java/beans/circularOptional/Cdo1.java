@@ -1,9 +1,8 @@
-package beans.circularOptional.circular;
+package beans.circularOptional;
 
 import lombok.Getter;
 import ru.cwcode.tkach.minedi.annotation.Component;
 import ru.cwcode.tkach.minedi.annotation.Lazy;
-import ru.cwcode.tkach.minedi.annotation.Required;
 
 @Component
 @Lazy

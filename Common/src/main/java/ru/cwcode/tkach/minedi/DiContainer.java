@@ -3,8 +3,8 @@ package ru.cwcode.tkach.minedi;
 import ru.cwcode.tkach.minedi.annotation.Component;
 import ru.cwcode.tkach.minedi.annotation.Lazy;
 import ru.cwcode.tkach.minedi.annotation.Required;
-import ru.cwcode.tkach.minedi.data.BeanDependency;
 import ru.cwcode.tkach.minedi.data.BeanData;
+import ru.cwcode.tkach.minedi.data.BeanDependency;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
@@ -38,6 +38,7 @@ public class DiContainer {
   }
   
   public boolean isBean(Class<?> clazz) {
+    
     return beans.containsKey(clazz);
   }
   
@@ -93,7 +94,7 @@ public class DiContainer {
   private <T> T create0(Class<T> clazz) {
     BeanData data = beans.get(clazz);
     
-    T instance = (T) application.getBeanConstructors().construct(clazz, data);
+    T instance = application.getBeanConstructors().construct(clazz, data);
     
     singletons.put(clazz, instance);
     
@@ -129,17 +130,26 @@ public class DiContainer {
   private void registerComponent(Class<?> clazz) {
     Set<Annotation> annotations = ReflectionUtils.getAnnotations(clazz);
     
-    if (annotations.stream().anyMatch(x -> x.annotationType().equals(Component.class))) {
+    if (annotations.stream().anyMatch(x -> x.annotationType().equals(Component.class))
+        && clazz.getDeclaredConstructors().length == 1) {
       beans.put(clazz, new BeanData(annotations));
     }
   }
   
   private void searchForDependencies(Class<?> clazz, BeanData beanData) {
-    List<BeanDependency> dependencies = Arrays.stream(clazz.getDeclaredFields())
-                                              .filter(x -> isBean(x.getType()))
-                                              .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))
-                                              .toList();
+    List<BeanDependency> fieldDependencies = Arrays.stream(clazz.getDeclaredFields())
+                                                   .filter(x -> isBean(x.getType()))
+                                                   .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))
+                                                   .toList();
     
-    beanData.setDependencies(dependencies);
+    List<BeanDependency> constructorDependencies = Arrays.stream(clazz.getDeclaredConstructors()[0].getParameterTypes())
+                                                         .filter(this::isBean)
+                                                         .map(x -> new BeanDependency(x, true))
+                                                         .toList();
+    
+    Set<BeanDependency> distinctDependencies = new HashSet<>(fieldDependencies);
+    distinctDependencies.addAll(constructorDependencies);
+    
+    beanData.setDependencies(new ArrayList<>(distinctDependencies));
   }
 }

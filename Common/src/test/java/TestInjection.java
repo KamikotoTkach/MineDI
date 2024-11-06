@@ -1,6 +1,6 @@
 import beans.SomeBean1;
 import beans.circular.Cd1;
-import beans.circularOptional.circular.Cdo1;
+import beans.circularOptional.Cdo1;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import ru.cwcode.tkach.minedi.DiApplication;
@@ -32,6 +32,7 @@ public class TestInjection {
   public void testLazyCircularDependenciesThrowsException() {
     assertThrows(RuntimeException.class, () -> application.get(Cd1.class).orElse(null));
   }
+  
   @Test
   public void testLazyOptionalCircularDependenciesIsOk() {
     Cdo1 cdo1 = application.get(Cdo1.class).orElse(null);

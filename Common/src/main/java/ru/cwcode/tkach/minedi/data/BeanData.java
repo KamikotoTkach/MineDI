@@ -17,14 +17,6 @@ public class BeanData {
     this.annotations = annotations;
   }
   
-  public boolean isRequired(Class<?> clazz) {
-    return dependencies.stream()
-                       .filter(x -> x.getClazz().equals(clazz))
-                       .findFirst()
-                       .map(BeanDependency::isStartupRequired)
-                       .orElse(false);
-  }
-  
   public boolean isAnnotationPresent(Class<? extends Annotation> annotation) {
     return annotations.stream().anyMatch(x -> x.annotationType().equals(annotation));
   }
