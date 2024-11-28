@@ -19,8 +19,8 @@ public class DiContainer {
   
   ClassScanner scanner;
   Set<Class<?>> classes;
-  HashMap<Class<?>, BeanData> beans = new HashMap<>();
-  HashMap<Class<?>, Object> singletons = new HashMap<>();
+  Map<Class<?>, BeanData> beans = new HashMap<>();
+  Map<Class<?>, Object> singletons = new HashMap<>();
   
   public DiContainer(ClassScanner scanner, DiApplication application) {
     this.scanner = scanner;
@@ -38,7 +38,6 @@ public class DiContainer {
   }
   
   public boolean isBean(Class<?> clazz) {
-    
     return beans.containsKey(clazz);
   }
   
@@ -67,6 +66,20 @@ public class DiContainer {
   
   public BeanData getData(Class<?> clazz) {
     return beans.get(clazz);
+  }
+  
+  public void updateBean(Class<?> clazz, Object newObject) {
+    BeanData beanData = beans.get(clazz);
+    if (beanData == null) return;
+    
+    beanData.getBeanFields().forEach((field, origin) -> {
+      try {
+        field.setAccessible(true);
+        field.set(origin, newObject);
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+    });
   }
   
   protected void registerComponents() {
@@ -118,9 +131,15 @@ public class DiContainer {
           .forEach(x -> {
             try {
               x.setAccessible(true);
-              if (x.get(instance) != null) return;
               
-              x.set(instance, create(x.getType()));
+              Object val = x.get(instance);
+              
+              if (val == null) {
+                x.set(instance, val = create(x.getType()));
+              }
+              
+              beans.get(val.getClass()).getBeanFields().put(x, instance);
+              
             } catch (IllegalAccessException e) {
               throw new RuntimeException(e);
             }

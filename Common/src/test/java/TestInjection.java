@@ -1,13 +1,12 @@
 import beans.SomeBean1;
+import beans.SomeBean2;
 import beans.circular.Cd1;
 import beans.circularOptional.Cdo1;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import ru.cwcode.tkach.minedi.DiApplication;
 
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestInjection {
   static DiApplication application;
@@ -16,6 +15,20 @@ public class TestInjection {
   public static void init() {
     application = new DiApplication(new TestClassScanner("target/test-classes/"));
     application.start();
+  }
+  
+  @Test
+  public void testUpdateBean() {
+    SomeBean1 val = application.get(SomeBean1.class).orElse(null);
+    assertNotNull(val);
+    
+    SomeBean2 bean2 = val.getDep();
+    assertNotNull(bean2);
+    
+    application.getContainer().updateBean(SomeBean2.class, new SomeBean2());
+    SomeBean1 someBean1 = application.get(SomeBean1.class).orElse(null);
+    
+    assertNotSame(bean2, someBean1.getDep(), "invalid update bean");
   }
   
   @Test

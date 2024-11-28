@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -12,6 +14,8 @@ public class BeanData {
   private final Set<Annotation> annotations;
   @Setter
   private List<BeanDependency> dependencies = List.of();
+  
+  private final HashMap<Field, Object> beanFields = new HashMap<>();
   
   public BeanData(Set<Annotation> annotations) {
     this.annotations = annotations;
