@@ -3,9 +3,11 @@ package ru.cwcode.tkach.minedi.extension.paper;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import ru.cwcode.commands.Command;
 import ru.cwcode.cwutils.ReloadCatcher;
 import ru.cwcode.cwutils.bootstrap.Bootstrap;
 import ru.cwcode.cwutils.scheduler.Tasks;
+import ru.cwcode.tkach.config.commands.ReloadCommands;
 import ru.cwcode.tkach.config.jackson.yaml.YmlConfigManager;
 import ru.cwcode.tkach.config.paper.PaperPluginConfigPlatform;
 import ru.cwcode.tkach.config.repository.yml.YmlRepositoryManager;
@@ -84,6 +86,12 @@ public class PaperPlatform extends Bootstrap {
   
   protected @NotNull PaperPluginConfigPlatform getConfigPlatform() {
     return new PaperPluginConfigPlatform(this);
+  }
+  
+  protected Command paperReload() {
+    return ReloadCommands.get(ymlConfigManager, ymlConfig -> {
+      diApplication.getContainer().updateBean(ymlConfig.getClass(), ymlConfig);
+    });
   }
   
   @Override
