@@ -17,7 +17,13 @@ public class ConfigConstructor implements BeanConstructor {
   @Override
   public <T> T construct(Class<T> clazz, BeanData data, DiApplication application) {
     if (!Config.class.isAssignableFrom(clazz)) return null;
+    String configPath = clazz.getSimpleName();
     
-    return (T) configManager.load(clazz.getSimpleName(), clazz);
+    var annotation = clazz.getAnnotation(ru.cwcode.tkach.minedi.extension.paper.annotation.Config.class);
+    if (annotation != null && !annotation.path().isEmpty()) {
+      configPath = annotation.path();
+    }
+    
+    return (T) configManager.load(configPath, clazz);
   }
 }

@@ -3,6 +3,7 @@ package ru.cwcode.tkach.minedi.utils;
 import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.jar.JarEntry;
@@ -33,6 +34,23 @@ public class ReflectionUtils {
     return classes;
   }
   
+  public static List<Field> getFields(Object object) {
+    return getFields(object.getClass());
+  }
+  
+  public static List<Field> getFields(Class<?> clazz) {
+    if (clazz == null) return Collections.emptyList();
+    
+    List<Field> fields = new ArrayList<>();
+    
+    while (clazz != Object.class && clazz != null) {
+      fields.addAll(Arrays.asList(clazz.getDeclaredFields()));
+      clazz = clazz.getSuperclass();
+    }
+    
+    return fields;
+  }
+  
   public static Set<Annotation> getAnnotations(Class<?> clazz) {
     Set<Annotation> annotations = new HashSet<>(Arrays.asList(clazz.getAnnotations()));
     
@@ -48,10 +66,6 @@ public class ReflectionUtils {
       
       annotations.addAll(inherited);
     } while (size != annotations.size());
-    
-    System.out.println("Class %s contains [%s] annotations".formatted(clazz.getName(), annotations.stream()
-                                                                                                  .map(x -> x.annotationType().getSimpleName())
-                                                                                                  .reduce("", (a, b) -> a + " " + b)));
     
     return annotations;
   }

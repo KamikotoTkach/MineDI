@@ -5,6 +5,7 @@ import ru.cwcode.tkach.minedi.annotation.Lazy;
 import ru.cwcode.tkach.minedi.annotation.Required;
 import ru.cwcode.tkach.minedi.data.BeanData;
 import ru.cwcode.tkach.minedi.data.BeanDependency;
+import ru.cwcode.tkach.minedi.exception.CircularDependencyException;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
@@ -25,13 +26,18 @@ public class DiContainer {
   public DiContainer(ClassScanner scanner, DiApplication application) {
     this.scanner = scanner;
     this.application = application;
+    
+    this.singletons.put(this.getClass(), this);
+    this.singletons.put(application.getClass(), application);
+    this.beans.put(this.getClass(), new BeanData(Set.of()));
+    this.beans.put(application.getClass(), new BeanData(Set.of()));
   }
   
   public <T> Optional<T> get(Class<T> type) {
     Object value = singletons.get(type);
     
     if (value == LAZY_OBJECT) {
-      return Optional.of(create(type));
+      return Optional.of(createOrGet(type));
     }
     
     return Optional.ofNullable((T) value);
@@ -46,15 +52,9 @@ public class DiContainer {
   }
   
   public <T> T create(Class<T> clazz) {
-    Object alreadyCreated = singletons.get(clazz);
-    if (alreadyCreated != null && alreadyCreated != LAZY_OBJECT) return (T) alreadyCreated;
-    
     boolean added = creatingStack.get().add(clazz);
     if (!added) {
-      throw new RuntimeException("Circular dependency detected: [%s <- %s]".formatted(creatingStack.get().stream()
-                                                                                                   .map(Class::getSimpleName)
-                                                                                                   .reduce("", (acc, c) -> acc + " <- " + c),
-                                                                                      clazz.getSimpleName()));
+      throw new CircularDependencyException(clazz, creatingStack.get());
     }
     
     T created = create0(clazz);
@@ -62,6 +62,13 @@ public class DiContainer {
     creatingStack.get().remove(clazz);
     
     return created;
+  }
+  
+  public <T> T createOrGet(Class<T> clazz) {
+    Object alreadyCreated = singletons.get(clazz);
+    if (alreadyCreated != null && alreadyCreated != LAZY_OBJECT) return (T) alreadyCreated;
+    
+    return create(clazz);
   }
   
   public BeanData getData(Class<?> clazz) {
@@ -95,7 +102,7 @@ public class DiContainer {
   private void constructSingletons() {
     beans.forEach((clazz, data) -> {
       if (!data.isAnnotationPresent(Lazy.class)) {
-        create(clazz);
+        createOrGet(clazz);
       } else {
         singletons.put(clazz, LAZY_OBJECT);
       }
@@ -109,13 +116,9 @@ public class DiContainer {
     
     T instance = application.getBeanConstructors().construct(clazz, data);
     
-    singletons.put(clazz, instance);
-    
     try {
       populateFields(instance);
-    } catch (Exception e) {
-      singletons.remove(clazz);
-      throw new RuntimeException(e);
+    } finally {
     }
     
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
@@ -126,24 +129,41 @@ public class DiContainer {
   private void populateFields(Object instance) {
     if (instance == LAZY_OBJECT) return;
     
-    Arrays.stream(instance.getClass().getDeclaredFields())
-          .filter(x -> isBean(x.getType()))
-          .forEach(x -> {
-            try {
-              x.setAccessible(true);
-              
-              Object val = x.get(instance);
-              
-              if (val == null) {
-                x.set(instance, val = create(x.getType()));
-              }
-              
-              beans.get(val.getClass()).getBeanFields().put(x, instance);
-              
-            } catch (IllegalAccessException e) {
-              throw new RuntimeException(e);
-            }
-          });
+    ReflectionUtils.getFields(instance.getClass()).stream()
+                   .filter(x -> isBean(x.getType()))
+                   .sorted(Comparator.comparingInt(x -> x.isAnnotationPresent(Required.class) ? 0 : 1)) //first required
+                   .forEach(x -> {
+                     if (isBeanPopulated(instance)) {
+                       singletons.put(instance.getClass(), instance);
+                     }
+                     
+                     try {
+                       x.setAccessible(true);
+                       
+                       Object val = x.get(instance);
+                       
+                       if (val == null) {
+                         x.set(instance, val = createOrGet(x.getType()));
+                       }
+                       
+                       beans.get(val.getClass()).getBeanFields().put(x, instance);
+                     } catch (IllegalAccessException e) {
+                       throw new RuntimeException(e);
+                     }
+                   });
+  }
+  
+  private boolean isBeanPopulated(Object object) {
+    return ReflectionUtils.getFields(object.getClass()).stream()
+                          .filter(x -> isBean(x.getType()) && x.isAnnotationPresent(Required.class))
+                          .allMatch(field -> {
+                            try {
+                              field.setAccessible(true);
+                              return field.get(object) != null;
+                            } catch (IllegalAccessException e) {
+                              throw new RuntimeException(e);
+                            }
+                          });
   }
   
   private void registerComponent(Class<?> clazz) {
@@ -156,10 +176,10 @@ public class DiContainer {
   }
   
   private void searchForDependencies(Class<?> clazz, BeanData beanData) {
-    List<BeanDependency> fieldDependencies = Arrays.stream(clazz.getDeclaredFields())
-                                                   .filter(x -> isBean(x.getType()))
-                                                   .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))
-                                                   .toList();
+    List<BeanDependency> fieldDependencies = ReflectionUtils.getFields(clazz.getDeclaredFields()).stream()
+                                                            .filter(x -> isBean(x.getType()))
+                                                            .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))
+                                                            .toList();
     
     List<BeanDependency> constructorDependencies = Arrays.stream(clazz.getDeclaredConstructors()[0].getParameterTypes())
                                                          .filter(this::isBean)

@@ -15,7 +15,7 @@ public class BeanConstructorImpl implements BeanConstructor {
     
     List<?> dependencies = data.getDependencies().stream()
                                .filter(BeanDependency::isStartupRequired)
-                               .map(x -> application.getContainer().create(x.getClazz()))
+                               .map(x -> application.getContainer().createOrGet(x.getClazz()))
                                .toList();
     
     Constructor<?> constructor = clazz.getDeclaredConstructors()[0];
