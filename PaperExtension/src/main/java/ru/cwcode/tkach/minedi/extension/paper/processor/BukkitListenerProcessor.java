@@ -17,10 +17,8 @@ public class BukkitListenerProcessor extends EventProcessor<BeanConstructedEvent
   
   @Override
   public void process(BeanConstructedEvent event, DiApplication application) {
-    extension.addDelayedTask(() -> {
-      if (event.getBean() instanceof Listener listener) {
-        Bukkit.getPluginManager().registerEvents(listener, extension.getPlugin());
-      }
-    });
+    if (event.getBean() instanceof Listener listener) {
+      extension.addDelayedTask(() -> Bukkit.getPluginManager().registerEvents(listener, extension.getPlugin()));
+    }
   }
 }
