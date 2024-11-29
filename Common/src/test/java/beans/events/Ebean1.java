@@ -5,7 +5,7 @@ import beans.SomeBean2;
 import beans.SomeBean3;
 import lombok.Getter;
 import ru.cwcode.tkach.minedi.annotation.Component;
-import ru.cwcode.tkach.minedi.annotation.EventHandler;
+import ru.cwcode.tkach.minedi.annotation.EventListener;
 import ru.cwcode.tkach.minedi.annotation.Required;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
 
@@ -22,7 +22,7 @@ public class Ebean1 {
     this.someBean1 = someBean1;
   }
   
-  @EventHandler
+  @EventListener
   private void onBeanConstructed(BeanConstructedEvent event) {
     if (someBean1 != null && someBean2 != null && someBean3 != null) {
       beanProperlyConstructed = true;

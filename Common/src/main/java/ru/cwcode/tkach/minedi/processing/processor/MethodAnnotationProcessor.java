@@ -2,7 +2,7 @@ package ru.cwcode.tkach.minedi.processing.processor;
 
 import revxrsal.asm.MethodCaller;
 import ru.cwcode.tkach.minedi.DiApplication;
-import ru.cwcode.tkach.minedi.annotation.EventHandler;
+import ru.cwcode.tkach.minedi.annotation.EventListener;
 import ru.cwcode.tkach.minedi.processing.EventHandlerImpl;
 import ru.cwcode.tkach.minedi.processing.event.ApplicationEvent;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
@@ -27,7 +27,7 @@ public class MethodAnnotationProcessor extends EventProcessor<BeanConstructedEve
     for (Method method : event.getBean().getClass().getDeclaredMethods()) {
       for (Annotation annotation : method.getAnnotations()) {
         if (annotation.annotationType().getName().startsWith("java.")) continue;
-        if (annotation.annotationType().equals(EventHandler.class)) {
+        if (annotation.annotationType().equals(EventListener.class)) {
           registerEventHandler(method, event);
         }
         

@@ -1,7 +1,7 @@
 package ru.cwcode.tkach.minedi.processing.processor;
 
 import ru.cwcode.tkach.minedi.DiApplication;
-import ru.cwcode.tkach.minedi.annotation.EventHandler;
+import ru.cwcode.tkach.minedi.annotation.EventListener;
 import ru.cwcode.tkach.minedi.processing.event.BeanEvent;
 
 import java.lang.reflect.InvocationTargetException;
@@ -18,7 +18,7 @@ public class BeanEventProcessor extends EventProcessor<BeanEvent> {
     Object bean = event.getBean();
     
     for (Method x : bean.getClass().getDeclaredMethods()) {
-      if (x.isAnnotationPresent(EventHandler.class)) {
+      if (x.isAnnotationPresent(EventListener.class)) {
         Parameter[] parameters = x.getParameters();
         if (parameters.length != 1) continue;
         
