@@ -28,7 +28,6 @@ public class PaperPlatform extends Bootstrap {
   YmlConfigManager ymlConfigManager;
   YmlRepositoryManager ymlRepositoryManager;
   PaperExtension paperExtension;
-  PlaceholderAdapter placeholderAdapter;
   
   Logger logger;
   

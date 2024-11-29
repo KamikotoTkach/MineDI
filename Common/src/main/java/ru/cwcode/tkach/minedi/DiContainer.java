@@ -116,10 +116,8 @@ public class DiContainer {
     
     T instance = application.getBeanConstructors().construct(clazz, data);
     
-    try {
-      populateFields(instance);
-    } finally {
-    }
+    populateFields(instance);
+    singletons.put(instance.getClass(), instance);
     
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
     
