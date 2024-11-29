@@ -1,9 +1,12 @@
 package ru.cwcode.tkach.minedi.extension.paper;
 
 import lombok.Getter;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.extension.Extension;
+import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAdapter;
+import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAnnotationProcessor;
 import ru.cwcode.tkach.minedi.extension.paper.processor.BukkitListenerProcessor;
 import ru.cwcode.tkach.minedi.extension.paper.processor.RepeatableAnnotationProcessor;
 import ru.cwcode.tkach.minedi.processing.event.Event;
@@ -25,6 +28,10 @@ public class PaperExtension implements Extension {
     processors = new LinkedList<>();
     processors.add(new BukkitListenerProcessor(this));
     processors.add(new RepeatableAnnotationProcessor(this));
+    
+    if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+      processors.add(new PlaceholderAnnotationProcessor(new PlaceholderAdapter(this)));
+    }
   }
   
   public void addDelayedTask(Runnable runnable) {

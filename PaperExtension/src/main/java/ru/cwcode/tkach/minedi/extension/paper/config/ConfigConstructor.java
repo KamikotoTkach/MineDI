@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.minedi.extension.paper.constructor;
+package ru.cwcode.tkach.minedi.extension.paper.config;
 
 import ru.cwcode.tkach.config.base.Config;
 import ru.cwcode.tkach.config.base.manager.ConfigManager;
@@ -19,7 +19,7 @@ public class ConfigConstructor implements BeanConstructor {
     if (!Config.class.isAssignableFrom(clazz)) return null;
     String configPath = clazz.getSimpleName();
     
-    var annotation = clazz.getAnnotation(ru.cwcode.tkach.minedi.extension.paper.annotation.Config.class);
+    var annotation = clazz.getAnnotation(ru.cwcode.tkach.minedi.extension.paper.config.Config.class);
     if (annotation != null && !annotation.path().isEmpty()) {
       configPath = annotation.path();
     }

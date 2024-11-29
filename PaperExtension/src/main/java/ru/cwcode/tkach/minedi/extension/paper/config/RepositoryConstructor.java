@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.minedi.extension.paper.constructor;
+package ru.cwcode.tkach.minedi.extension.paper.config;
 
 import ru.cwcode.tkach.config.repository.Repository;
 import ru.cwcode.tkach.config.repository.RepositoryManager;

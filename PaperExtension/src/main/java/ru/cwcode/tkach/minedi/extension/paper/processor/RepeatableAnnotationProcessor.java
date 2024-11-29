@@ -21,7 +21,7 @@ public class RepeatableAnnotationProcessor extends EventProcessor<CustomMethodAn
   @Override
   public void process(CustomMethodAnnotationEvent event, DiApplication application) {
     if (!event.getAnnotation().annotationType().equals(Repeat.class)) return;
-    Repeat annotation = event.getMethod().getAnnotation(Repeat.class);
+    Repeat annotation = (Repeat) event.getAnnotation();
     
     Method method = event.getMethod();
     method.setAccessible(true);

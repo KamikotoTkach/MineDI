@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.minedi.extension.paper.annotation;
+package ru.cwcode.tkach.minedi.extension.paper.config;
 
 import ru.cwcode.tkach.minedi.annotation.Component;
 

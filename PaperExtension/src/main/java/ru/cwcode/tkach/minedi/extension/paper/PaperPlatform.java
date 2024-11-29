@@ -12,7 +12,9 @@ import ru.cwcode.tkach.config.jackson.yaml.YmlConfigManager;
 import ru.cwcode.tkach.config.paper.PaperPluginConfigPlatform;
 import ru.cwcode.tkach.config.repository.yml.YmlRepositoryManager;
 import ru.cwcode.tkach.minedi.DiApplication;
-import ru.cwcode.tkach.minedi.extension.paper.constructor.ConfigConstructor;
+import ru.cwcode.tkach.minedi.extension.paper.config.ConfigCreator;
+import ru.cwcode.tkach.minedi.extension.paper.config.ConfigConstructor;
+import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAdapter;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -26,6 +28,7 @@ public class PaperPlatform extends Bootstrap {
   YmlConfigManager ymlConfigManager;
   YmlRepositoryManager ymlRepositoryManager;
   PaperExtension paperExtension;
+  PlaceholderAdapter placeholderAdapter;
   
   Logger logger;
   
