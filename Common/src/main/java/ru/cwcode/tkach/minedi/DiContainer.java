@@ -48,7 +48,8 @@ public class DiContainer {
   }
   
   public void registerSingleton(Object bean, Class<?> as) {
-    singletons.put(as, bean);
+    this.beans.put(as, new BeanData(Set.of()));
+    this.singletons.put(as, bean);
   }
   
   public <T> T create(Class<T> clazz) {

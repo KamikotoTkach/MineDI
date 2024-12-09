@@ -8,28 +8,33 @@ import ru.cwcode.cwutils.ReloadCatcher;
 import ru.cwcode.cwutils.bootstrap.Bootstrap;
 import ru.cwcode.cwutils.scheduler.Tasks;
 import ru.cwcode.tkach.config.commands.ReloadCommands;
+import ru.cwcode.tkach.config.jackson.JacksonConfigMapper;
+import ru.cwcode.tkach.config.jackson.yaml.YmlConfig;
 import ru.cwcode.tkach.config.jackson.yaml.YmlConfigManager;
 import ru.cwcode.tkach.config.paper.PaperPluginConfigPlatform;
+import ru.cwcode.tkach.config.relocate.com.fasterxml.jackson.databind.module.SimpleModule;
 import ru.cwcode.tkach.config.repository.yml.YmlRepositoryManager;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.extension.paper.config.ConfigCreator;
 import ru.cwcode.tkach.minedi.extension.paper.config.ConfigConstructor;
-import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAdapter;
+import ru.cwcode.tkach.minedi.extension.paper.config.InjectFieldExclusionModifier;
+import ru.cwcode.tkach.minedi.extension.paper.config.RepositoryConstructor;
+import ru.cwcode.tkach.minedi.extension.paper.event.PluginDisableEvent;
+import ru.cwcode.tkach.minedi.extension.paper.event.PluginEnableEvent;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 public class PaperPlatform extends Bootstrap {
-  boolean debug = false;
+  protected boolean debug = false;
   
-  DiApplication diApplication;
+  protected DiApplication diApplication;
   
-  YmlConfigManager ymlConfigManager;
-  YmlRepositoryManager ymlRepositoryManager;
-  PaperExtension paperExtension;
+  protected YmlConfigManager ymlConfigManager;
+  protected YmlRepositoryManager ymlRepositoryManager;
+  protected PaperExtension paperExtension;
   
-  Logger logger;
+  protected Logger logger;
   
   public void debug(Supplier<String> log) {
     if (debug) logger.info(log.get());
@@ -51,7 +56,14 @@ public class PaperPlatform extends Bootstrap {
     ymlConfigManager = new YmlConfigManager(getConfigPlatform(), new ConfigCreator(diApplication));
     ymlRepositoryManager = new YmlRepositoryManager(ymlConfigManager);
     
+    ((JacksonConfigMapper) ymlConfigManager.mapper()).getMapper().setInjectableValues(new DiInjectableValues(diApplication));
+    
+    SimpleModule injectableExclusion = new SimpleModule();
+    injectableExclusion.setSerializerModifier(new InjectFieldExclusionModifier());
+    ((JacksonConfigMapper<YmlConfig>) ymlConfigManager.mapper()).module(injectableExclusion);
+    
     diApplication.getBeanConstructors().getConstructors().addFirst(new ConfigConstructor(ymlConfigManager));
+    diApplication.getBeanConstructors().getConstructors().addFirst(new RepositoryConstructor(ymlRepositoryManager));
     
     diApplication.register(diApplication);
     diApplication.register(logger, Logger.class);
@@ -62,18 +74,26 @@ public class PaperPlatform extends Bootstrap {
     
     debug(() -> "PostLoad");
     
+    initialize();
     
     debug(() -> "PreAsyncTask");
     super.onLoad();
     debug(() -> "PostAsyncTask");
   }
   
+  protected void initialize() {
+  
+  }
+  
   @Override
   public void onDisable() {
     debug(() -> "PreDisable");
     
-    ymlConfigManager.saveAll(configPersistOptions -> {});
+    ymlConfigManager.saveAll(options -> options.async(false)
+                                               .silent(false));
     Tasks.cancelTasks(this);
+    
+    diApplication.getEventHandler().handleEvent(new PluginDisableEvent());
     
     debug(() -> "PostDisable");
   }
@@ -81,9 +101,13 @@ public class PaperPlatform extends Bootstrap {
   @Override
   public void onEnable() {
     Bukkit.getPluginManager().registerEvents(new ReloadCatcher(), this);
+    
+    diApplication.start();
     paperExtension.onPluginEnable();
     
     super.onEnable();
+    
+    diApplication.getEventHandler().handleEvent(new PluginEnableEvent());
   }
   
   protected @NotNull PaperPluginConfigPlatform getConfigPlatform() {
@@ -94,10 +118,5 @@ public class PaperPlatform extends Bootstrap {
     return ReloadCommands.get(ymlConfigManager, ymlConfig -> {
       diApplication.getContainer().updateBean(ymlConfig.getClass(), ymlConfig);
     });
-  }
-  
-  @Override
-  protected CompletableFuture<Void> asyncTask() {
-    return CompletableFuture.runAsync(diApplication::start);
   }
 }
