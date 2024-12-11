@@ -56,7 +56,7 @@ public class DiApplication {
   
   public void start() {
     container.scanClasses();
-    container.registerComponents();
+    container.registerBeans();
     
     extensions.forEach(extension -> extension.onStart(this));
   }

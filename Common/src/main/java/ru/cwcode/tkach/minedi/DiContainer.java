@@ -4,13 +4,13 @@ import ru.cwcode.tkach.minedi.annotation.Component;
 import ru.cwcode.tkach.minedi.annotation.Lazy;
 import ru.cwcode.tkach.minedi.annotation.Required;
 import ru.cwcode.tkach.minedi.data.BeanData;
-import ru.cwcode.tkach.minedi.data.BeanDependency;
 import ru.cwcode.tkach.minedi.exception.CircularDependencyException;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
+import ru.cwcode.tkach.minedi.provider.BeanProvider;
+import ru.cwcode.tkach.minedi.provider.SingletonBeanProvider;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
 
-import java.lang.annotation.Annotation;
 import java.util.*;
 
 public class DiContainer {
@@ -21,26 +21,34 @@ public class DiContainer {
   ClassScanner scanner;
   Set<Class<?>> classes;
   Map<Class<?>, BeanData> beans = new HashMap<>();
-  Map<Class<?>, Object> singletons = new HashMap<>();
+  Map<String, BeanProvider> beanProviders = new HashMap<>();
+  
+  public static Object getLazyObject() {
+    return LAZY_OBJECT;
+  }
   
   public DiContainer(ClassScanner scanner, DiApplication application) {
     this.scanner = scanner;
     this.application = application;
     
-    this.singletons.put(this.getClass(), this);
-    this.singletons.put(application.getClass(), application);
-    this.beans.put(this.getClass(), new BeanData(Set.of()));
-    this.beans.put(application.getClass(), new BeanData(Set.of()));
+    registerProvider(new SingletonBeanProvider(this));
+    
+    registerSingleton(this, this.getClass());
+    registerSingleton(application, application.getClass());
+  }
+  
+  public void registerProvider(BeanProvider beanProvider) {
+    beanProviders.put(beanProvider.scope(), beanProvider);
   }
   
   public <T> Optional<T> get(Class<T> type) {
-    Object value = singletons.get(type);
+    BeanData beanData = beans.get(type);
+    if (beanData == null) return Optional.empty();
     
-    if (value == LAZY_OBJECT) {
-      return Optional.of(createOrGet(type));
-    }
+    BeanProvider beanProvider = beanProviders.get(beanData.getScope());
+    if (beanProvider == null) return Optional.empty(); //todo throw exception?
     
-    return Optional.ofNullable((T) value);
+    return Optional.ofNullable(type.cast(beanProvider.provide(beanData)));
   }
   
   public boolean isBean(Class<?> clazz) {
@@ -48,8 +56,12 @@ public class DiContainer {
   }
   
   public void registerSingleton(Object bean, Class<?> as) {
-    this.beans.put(as, new BeanData(Set.of()));
-    this.singletons.put(as, bean);
+    BeanData value = new BeanData(as, this);
+    this.beans.put(as, value);
+    
+    value.searchForDependencies();
+    
+    singletonBeanProvider().set(as, bean);
   }
   
   public <T> T create(Class<T> clazz) {
@@ -66,10 +78,13 @@ public class DiContainer {
   }
   
   public <T> T createOrGet(Class<T> clazz) {
-    Object alreadyCreated = singletons.get(clazz);
-    if (alreadyCreated != null && alreadyCreated != LAZY_OBJECT) return (T) alreadyCreated;
+    BeanData beanData = beans.get(clazz);
     
-    return create(clazz);
+    return clazz.cast(beanProviders.get(beanData.getScope()).provide(beanData));
+  }
+  
+  private SingletonBeanProvider singletonBeanProvider() {
+    return (SingletonBeanProvider) beanProviders.get(BeanScope.SINGLETON);
   }
   
   public BeanData getData(Class<?> clazz) {
@@ -90,26 +105,33 @@ public class DiContainer {
     });
   }
   
-  protected void registerComponents() {
-    classes.forEach(this::registerComponent);
-    beans.forEach(this::searchForDependencies);
-    this.constructSingletons();
+  protected void registerBeans() {
+    classes.forEach(this::registerBean);
+    beans.values().forEach(BeanData::searchForDependencies);
+    
+    constructSingletons();
   }
   
   protected void scanClasses() {
     classes = scanner.scan();
   }
   
+  public BeanProvider getBeanProvider(String scope) {
+    return beanProviders.get(scope);
+  }
+  
   private void constructSingletons() {
+    SingletonBeanProvider singletonBeanProvider = (SingletonBeanProvider) getBeanProvider(BeanScope.SINGLETON);
+    
     beans.forEach((clazz, data) -> {
+      if (!data.getScope().equals(BeanScope.SINGLETON)) return;
+      
       if (!data.isAnnotationPresent(Lazy.class)) {
         createOrGet(clazz);
-      } else {
-        singletons.put(clazz, LAZY_OBJECT);
       }
     });
     
-    singletons.keySet().forEach(this::populateFields);
+    singletonBeanProvider.getBeanClasses().forEach(this::populateFields);
   }
   
   private <T> T create0(Class<T> clazz) {
@@ -118,7 +140,6 @@ public class DiContainer {
     T instance = application.getBeanConstructors().construct(clazz, data);
     
     populateFields(instance);
-    singletons.put(instance.getClass(), instance);
     
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
     
@@ -126,26 +147,24 @@ public class DiContainer {
   }
   
   private void populateFields(Object instance) {
-    if (instance == LAZY_OBJECT) return;
-    
     ReflectionUtils.getFields(instance.getClass()).stream()
                    .filter(x -> isBean(x.getType()))
                    .sorted(Comparator.comparingInt(x -> x.isAnnotationPresent(Required.class) ? 0 : 1)) //first required
-                   .forEach(x -> {
-                     if (isBeanPopulated(instance)) {
-                       singletons.put(instance.getClass(), instance);
+                   .forEach(field -> {
+                     if (beans.get(instance.getClass()).getScope().equals(BeanScope.SINGLETON) && isBeanPopulated(instance)) {
+                       singletonBeanProvider().set(instance.getClass(), instance);
                      }
                      
                      try {
-                       x.setAccessible(true);
+                       field.setAccessible(true);
                        
-                       Object val = x.get(instance);
+                       Object fieldValue = field.get(instance);
                        
-                       if (val == null) {
-                         x.set(instance, val = createOrGet(x.getType()));
+                       if (fieldValue == null) {
+                         field.set(instance, fieldValue = createOrGet(field.getType()));
                        }
                        
-                       beans.get(val.getClass()).getBeanFields().put(x, instance);
+                       beans.get(fieldValue.getClass()).getBeanFields().put(field, instance); //todo clean fields of removed objects
                      } catch (IllegalAccessException e) {
                        throw new RuntimeException(e);
                      }
@@ -165,29 +184,18 @@ public class DiContainer {
                           });
   }
   
-  private void registerComponent(Class<?> clazz) {
-    Set<Annotation> annotations = ReflectionUtils.getAnnotations(clazz);
-    
-    if (annotations.stream().anyMatch(x -> x.annotationType().equals(Component.class))
-        && clazz.getDeclaredConstructors().length == 1) {
-      beans.put(clazz, new BeanData(annotations));
+  private void registerBean(Class<?> clazz) {
+    if (validateBean(clazz)) {
+      BeanData value = new BeanData(clazz, this);
+      if (!value.isAnnotationPresent(Component.class)) {
+        return;
+      }
+      
+      beans.put(clazz, value);
     }
   }
   
-  private void searchForDependencies(Class<?> clazz, BeanData beanData) {
-    List<BeanDependency> fieldDependencies = ReflectionUtils.getFields(clazz.getDeclaredFields()).stream()
-                                                            .filter(x -> isBean(x.getType()))
-                                                            .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))
-                                                            .toList();
-    
-    List<BeanDependency> constructorDependencies = Arrays.stream(clazz.getDeclaredConstructors()[0].getParameterTypes())
-                                                         .filter(this::isBean)
-                                                         .map(x -> new BeanDependency(x, true))
-                                                         .toList();
-    
-    Set<BeanDependency> distinctDependencies = new HashSet<>(fieldDependencies);
-    distinctDependencies.addAll(constructorDependencies);
-    
-    beanData.setDependencies(new ArrayList<>(distinctDependencies));
+  public boolean validateBean(Class<?> clazz) {
+    return clazz.getDeclaredConstructors().length == 1;
   }
 }
