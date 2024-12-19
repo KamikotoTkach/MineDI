@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.minedi.extension.paper;
+package ru.cwcode.tkach.minedi.extension.paper.config;
 
 import ru.cwcode.tkach.config.relocate.com.fasterxml.jackson.databind.BeanProperty;
 import ru.cwcode.tkach.config.relocate.com.fasterxml.jackson.databind.DeserializationContext;
