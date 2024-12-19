@@ -11,6 +11,8 @@ import ru.cwcode.tkach.minedi.provider.SingletonBeanProvider;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 
 public class DiContainer {
@@ -110,6 +112,24 @@ public class DiContainer {
     beans.values().forEach(BeanData::searchForDependencies);
     
     constructSingletons();
+    injectStaticFieldsWholeApplication();
+  }
+  
+  private void injectStaticFieldsWholeApplication() {
+    for (Class<?> clazz : classes) {
+      for (Field declaredField : clazz.getDeclaredFields()) {
+        if (Modifier.isStatic(declaredField.getModifiers()) && isBean(declaredField.getType())) {
+          declaredField.setAccessible(true);
+          try {
+            if (declaredField.get(null) == null) {
+              declaredField.set(null, get(declaredField.getType()).orElseThrow());
+            }
+          } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
+    }
   }
   
   protected void scanClasses() {
@@ -146,12 +166,13 @@ public class DiContainer {
     return instance;
   }
   
-  private void populateFields(Object instance) {
+  public void populateFields(Object instance) {
     ReflectionUtils.getFields(instance.getClass()).stream()
                    .filter(x -> isBean(x.getType()))
                    .sorted(Comparator.comparingInt(x -> x.isAnnotationPresent(Required.class) ? 0 : 1)) //first required
                    .forEach(field -> {
-                     if (beans.get(instance.getClass()).getScope().equals(BeanScope.SINGLETON) && isBeanPopulated(instance)) {
+                     BeanData beanData = beans.get(instance.getClass());
+                     if (beanData != null && beanData.getScope().equals(BeanScope.SINGLETON) && isBeanPopulated(instance)) {
                        singletonBeanProvider().set(instance.getClass(), instance);
                      }
                      
@@ -161,10 +182,10 @@ public class DiContainer {
                        Object fieldValue = field.get(instance);
                        
                        if (fieldValue == null) {
-                         field.set(instance, fieldValue = createOrGet(field.getType()));
+                         field.set(instance, createOrGet(field.getType()));
                        }
                        
-                       beans.get(fieldValue.getClass()).getBeanFields().put(field, instance); //todo clean fields of removed objects
+                       beans.get(field.getType()).getBeanFields().put(field, instance); //todo clean fields of removed objects
                      } catch (IllegalAccessException e) {
                        throw new RuntimeException(e);
                      }
