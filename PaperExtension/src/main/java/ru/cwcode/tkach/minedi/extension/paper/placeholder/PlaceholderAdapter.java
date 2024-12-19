@@ -10,10 +10,7 @@ import ru.cwcode.cwutils.text.StringToObjectParser;
 import ru.cwcode.tkach.minedi.extension.paper.PaperExtension;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PlaceholderAdapter {
   private final PaperExtension extension;
@@ -76,20 +73,26 @@ public class PlaceholderAdapter {
   }
   
   protected Object[] adapt(@Nullable OfflinePlayer player, Class<?>[] types, String[] strParameters) {
-    if (types.length < strParameters.length + 1) return null;
+    int hasPlayer = types.length > 0 && OfflinePlayer.class.isAssignableFrom(types[0]) ? 1 : 0;
     
-    int strParamIndex = 0;
+    if (types.length == 1 + hasPlayer && types[hasPlayer].equals(String.class.arrayType())) {
+      return hasPlayer > 0 ? new Object[]{player, strParameters} : new Object[]{strParameters};
+    }
+    
+    if (types.length < strParameters.length + hasPlayer) return null;
+    
     Object[] adapted = new Object[types.length];
     
-    for (int i = 0; i < types.length; i++) {
+    if (hasPlayer > 0) {
+      adapted[0] = player;
+    }
+    
+    for (int i = hasPlayer; i < types.length; i++) {
       Class<?> clazz = types[i];
-      if (OfflinePlayer.class.isAssignableFrom(clazz)) {
-        adapted[i] = player;
-        continue;
-      }
       
-      if (strParameters.length == strParamIndex) continue;
-      String strParameter = strParameters[strParamIndex++];
+      if (strParameters.length == i - hasPlayer) break;
+      
+      String strParameter = strParameters[i-hasPlayer];
       
       Object parsed = StringToObjectParser.parse(strParameter, clazz);
       if (parsed == null) {
@@ -101,4 +104,5 @@ public class PlaceholderAdapter {
     
     return adapted;
   }
+  
 }
