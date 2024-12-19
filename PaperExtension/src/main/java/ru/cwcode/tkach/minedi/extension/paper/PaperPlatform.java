@@ -15,10 +15,7 @@ import ru.cwcode.tkach.config.paper.PaperPluginConfigPlatform;
 import ru.cwcode.tkach.config.relocate.com.fasterxml.jackson.databind.module.SimpleModule;
 import ru.cwcode.tkach.config.repository.yml.YmlRepositoryManager;
 import ru.cwcode.tkach.minedi.DiApplication;
-import ru.cwcode.tkach.minedi.extension.paper.config.ConfigCreator;
-import ru.cwcode.tkach.minedi.extension.paper.config.ConfigConstructor;
-import ru.cwcode.tkach.minedi.extension.paper.config.InjectFieldExclusionModifier;
-import ru.cwcode.tkach.minedi.extension.paper.config.RepositoryConstructor;
+import ru.cwcode.tkach.minedi.extension.paper.config.*;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginDisableEvent;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginEnableEvent;
 
@@ -56,7 +53,7 @@ public class PaperPlatform extends Bootstrap {
     ymlConfigManager = new YmlConfigManager(getConfigPlatform(), new ConfigCreator(diApplication));
     ymlRepositoryManager = new YmlRepositoryManager(ymlConfigManager);
     
-    ((JacksonConfigMapper) ymlConfigManager.mapper()).getMapper().setInjectableValues(new DiInjectableValues(diApplication));
+    ((JacksonConfigMapper<?>) ymlConfigManager.mapper()).getMapper().setInjectableValues(new DiInjectableValues(diApplication));
     
     SimpleModule injectableExclusion = new SimpleModule();
     injectableExclusion.setSerializerModifier(new InjectFieldExclusionModifier());
@@ -71,6 +68,8 @@ public class PaperPlatform extends Bootstrap {
     diApplication.register(ymlRepositoryManager, YmlRepositoryManager.class);
     diApplication.register(this, JavaPlugin.class);
     diApplication.register(this);
+    
+    diApplication.getContainer().populateFields(this);
     
     debug(() -> "PostLoad");
     
