@@ -9,6 +9,8 @@ import ru.cwcode.tkach.minedi.extension.paper.PaperExtension;
 import ru.cwcode.tkach.minedi.processing.event.CustomMethodAnnotationEvent;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 
+import java.lang.reflect.Method;
+
 public class RepeatableAnnotationProcessor extends EventProcessor<CustomMethodAnnotationEvent> {
   private final PaperExtension extension;
   
@@ -22,7 +24,9 @@ public class RepeatableAnnotationProcessor extends EventProcessor<CustomMethodAn
     if (!event.getAnnotation().annotationType().equals(Repeat.class)) return;
     Repeat annotation = (Repeat) event.getAnnotation();
     
-    BoundMethodCaller boundMethodCaller = MethodCaller.wrap(event.getMethod())
+    Method method = event.getMethod();
+    method.setAccessible(true);
+    BoundMethodCaller boundMethodCaller = MethodCaller.wrap(method)
                                                       .bindTo(event.getBean());
     
     extension.addDelayedTask(() -> Scheduler.create()

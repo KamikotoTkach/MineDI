@@ -13,6 +13,8 @@ import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Getter
 public class DiApplication {
@@ -20,16 +22,21 @@ public class DiApplication {
   private final EventHandler eventHandler;
   private final BeanConstructors beanConstructors;
   private final List<Extension> extensions = new LinkedList<>();
+  private final Logger logger;
+  boolean isLoaded = false;
   
   public DiApplication(File jarfile, String packageName) {
     this(JarClassScanner.builder()
                         .jar(jarfile)
                         .packageName(packageName)
-                        .filter(s -> true)
+                        .filter(s -> !s.endsWith("Integration.class"))
                         .build());
   }
   
   public DiApplication(ClassScanner scanner) {
+    this.logger = Logger.getLogger("MineDI");
+    this.logger.setLevel(Level.WARNING);
+    
     this.eventHandler = new EventHandlerImpl(this);
     this.container = new DiContainer(scanner, this);
     this.beanConstructors = new BeanConstructors(this);
@@ -55,10 +62,16 @@ public class DiApplication {
   }
   
   public void start() {
-    container.scanClasses();
+    if(!isLoaded) load();
+    logger.info("Starting MineDI");
     container.registerBeans();
     
     extensions.forEach(extension -> extension.onStart(this));
   }
   
+  public void load() {
+    logger.info("Loading MineDI");
+    
+    container.scanClasses();
+  }
 }

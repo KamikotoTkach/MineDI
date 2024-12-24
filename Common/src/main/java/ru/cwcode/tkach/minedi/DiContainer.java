@@ -1,5 +1,6 @@
 package ru.cwcode.tkach.minedi;
 
+import lombok.Getter;
 import ru.cwcode.tkach.minedi.annotation.Component;
 import ru.cwcode.tkach.minedi.annotation.Lazy;
 import ru.cwcode.tkach.minedi.annotation.Required;
@@ -18,12 +19,14 @@ import java.util.*;
 public class DiContainer {
   private static final Object LAZY_OBJECT = new Object();
   final ThreadLocal<LinkedHashSet<Class<?>>> creatingStack = ThreadLocal.withInitial(LinkedHashSet::new);
+  @Getter
   final DiApplication application;
   
   ClassScanner scanner;
   Set<Class<?>> classes;
   Map<Class<?>, BeanData> beans = new HashMap<>();
   Map<String, BeanProvider> beanProviders = new HashMap<>();
+  Map<Class<?>, List<Field>> staticFields = new HashMap<>();
   
   public static Object getLazyObject() {
     return LAZY_OBJECT;
@@ -64,6 +67,7 @@ public class DiContainer {
     value.searchForDependencies();
     
     singletonBeanProvider().set(as, bean);
+    injectBeanInStaticFields(as);
   }
   
   public <T> T create(Class<T> clazz) {
@@ -107,33 +111,54 @@ public class DiContainer {
     });
   }
   
+  
   protected void registerBeans() {
-    classes.forEach(this::registerBean);
+    application.getLogger().info("Registering components");
+    classes.forEach(this::registerComponent);
+    
+    application.getLogger().info("Searching beans dependencies");
     beans.values().forEach(BeanData::searchForDependencies);
     
+    beans.forEach((clazz, data) -> injectBeanInStaticFields(clazz));
+    
     constructSingletons();
-    injectStaticFieldsWholeApplication();
   }
   
-  private void injectStaticFieldsWholeApplication() {
+  private void scanForStaticFields() {
+    application.getLogger().info("Scanning for static fields");
+    
     for (Class<?> clazz : classes) {
       for (Field declaredField : clazz.getDeclaredFields()) {
-        if (Modifier.isStatic(declaredField.getModifiers()) && isBean(declaredField.getType())) {
-          declaredField.setAccessible(true);
-          try {
-            if (declaredField.get(null) == null) {
-              declaredField.set(null, get(declaredField.getType()).orElseThrow());
-            }
-          } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-          }
+        if (Modifier.isStatic(declaredField.getModifiers())) {
+          staticFields.computeIfAbsent(declaredField.getType(), (e) -> new ArrayList<>())
+                      .add(declaredField);
         }
       }
     }
   }
   
+  private void injectBeanInStaticFields(Class<?> clazz) {
+    application.getLogger().info("Injecting " + clazz + " in static fields");
+    
+    for (Field field : staticFields.getOrDefault(clazz, List.of())) {
+      
+      field.setAccessible(true);
+      try {
+        if (field.get(null) == null) {
+          field.set(null, get(clazz).orElseThrow());
+        }
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+  
   protected void scanClasses() {
+    application.getLogger().info("Scanning classes...");
     classes = scanner.scan();
+    application.getLogger().info("Founded " + classes.size() + " classes");
+    
+    scanForStaticFields();
   }
   
   public BeanProvider getBeanProvider(String scope) {
@@ -141,6 +166,8 @@ public class DiContainer {
   }
   
   private void constructSingletons() {
+    application.getLogger().info("Constructing singletons");
+    
     SingletonBeanProvider singletonBeanProvider = (SingletonBeanProvider) getBeanProvider(BeanScope.SINGLETON);
     
     beans.forEach((clazz, data) -> {
@@ -205,10 +232,15 @@ public class DiContainer {
                           });
   }
   
-  private void registerBean(Class<?> clazz) {
+  public void registerComponent(Class<?> clazz) {
+    registerBean(clazz, false);
+  }
+  
+  public void registerBean(Class<?> clazz, boolean ignoreComponentRequiredAnnotation) {
     if (validateBean(clazz)) {
       BeanData value = new BeanData(clazz, this);
-      if (!value.isAnnotationPresent(Component.class)) {
+      if (ignoreComponentRequiredAnnotation || !value.isAnnotationPresent(Component.class)) {
+        application.getLogger().info("Class " + clazz.getSimpleName() + " ignored");
         return;
       }
       

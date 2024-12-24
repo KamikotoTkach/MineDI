@@ -8,8 +8,6 @@ import ru.cwcode.cwutils.ReloadCatcher;
 import ru.cwcode.cwutils.bootstrap.Bootstrap;
 import ru.cwcode.cwutils.scheduler.Tasks;
 import ru.cwcode.tkach.config.commands.ReloadCommands;
-import ru.cwcode.tkach.config.jackson.JacksonConfigMapper;
-import ru.cwcode.tkach.config.jackson.yaml.YmlConfig;
 import ru.cwcode.tkach.config.jackson.yaml.YmlConfigManager;
 import ru.cwcode.tkach.config.paper.PaperPluginConfigPlatform;
 import ru.cwcode.tkach.config.relocate.com.fasterxml.jackson.databind.module.SimpleModule;
@@ -20,6 +18,7 @@ import ru.cwcode.tkach.minedi.extension.paper.event.PluginDisableEvent;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginEnableEvent;
 
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class PaperPlatform extends Bootstrap {
@@ -34,30 +33,40 @@ public class PaperPlatform extends Bootstrap {
   protected Logger logger;
   
   public void debug(Supplier<String> log) {
-    if (debug) logger.info(log.get());
+    if (debug) {
+      try {
+        logger.info(log.get());
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
   }
   
   @Override
   public void onLoad() {
+    logger = getLogger();
+    
     if (this.getDescription().getVersion().toLowerCase().contains("debug")) {
       debug = true;
+      logger.setLevel(Level.ALL);
     }
     
     debug(() -> "PreLoad");
     
-    logger = getLogger();
-    
     diApplication = new DiApplication(getFile(), getClass().getPackageName());
+    if (debug) diApplication.getLogger().setLevel(Level.ALL);
+    diApplication.load();
+    
     diApplication.registerExtension(paperExtension = new PaperExtension(this));
     
     ymlConfigManager = new YmlConfigManager(getConfigPlatform(), new ConfigCreator(diApplication));
     ymlRepositoryManager = new YmlRepositoryManager(ymlConfigManager);
     
-    ((JacksonConfigMapper<?>) ymlConfigManager.mapper()).getMapper().setInjectableValues(new DiInjectableValues(diApplication));
+    ymlConfigManager.mapper().getMapper().setInjectableValues(new DiInjectableValues(diApplication));
     
     SimpleModule injectableExclusion = new SimpleModule();
     injectableExclusion.setSerializerModifier(new InjectFieldExclusionModifier());
-    ((JacksonConfigMapper<YmlConfig>) ymlConfigManager.mapper()).module(injectableExclusion);
+    ymlConfigManager.mapper().module(injectableExclusion);
     
     diApplication.getBeanConstructors().getConstructors().addFirst(new ConfigConstructor(ymlConfigManager));
     diApplication.getBeanConstructors().getConstructors().addFirst(new RepositoryConstructor(ymlRepositoryManager));
@@ -99,13 +108,23 @@ public class PaperPlatform extends Bootstrap {
   
   @Override
   public void onEnable() {
+    if (debug) {
+      logger.setLevel(Level.ALL);
+      diApplication.getLogger().setLevel(Level.ALL);
+    }
+    
     Bukkit.getPluginManager().registerEvents(new ReloadCatcher(), this);
     
+    debug(() -> "Pre start");
     diApplication.start();
+    
+    debug(() -> "Pre extension enable");
     paperExtension.onPluginEnable();
     
+    debug(() -> "Pre async task waiting");
     super.onEnable();
     
+    debug(() -> "Pre plugin enabled event");
     diApplication.getEventHandler().handleEvent(new PluginEnableEvent());
   }
   

@@ -39,6 +39,8 @@ public class BeanData {
   }
   
   public void searchForDependencies() {
+    diContainer.getApplication().getLogger().info("Searching for dependencies of " + clazz);
+    
     List<BeanDependency> fieldDependencies = ReflectionUtils.getFields(clazz.getDeclaredFields()).stream()
                                                             .filter(x -> diContainer.isBean(x.getType()))
                                                             .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))

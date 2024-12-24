@@ -21,6 +21,7 @@ public class PlaceholderAdapter {
   }
   
   public void register(Object source, Method method, String identifier) {
+    method.setAccessible(true);
     placeholders.computeIfAbsent(identifier, s -> new ArrayList<>())
                 .add(new MethodData(method.getParameterTypes(), MethodCaller.wrap(method).bindTo(source)));
     

@@ -34,6 +34,8 @@ public class EventHandlerImpl implements EventHandler {
   
   @Override
   public <E extends Event> void handleEvent(E event) {
+    application.getLogger().info("Handling event: " + event);
+    
     if (event instanceof ApplicationEvent applicationEvent) {
       applicationEventListeners.getOrDefault(applicationEvent.getClass(), List.of())
                                .forEach(boundMethodCaller -> boundMethodCaller.call(event));

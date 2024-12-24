@@ -42,6 +42,8 @@ public class MethodAnnotationProcessor extends EventProcessor<BeanConstructedEve
     
     Class<?> type = parameters[0].getType();
     
+    method.setAccessible(true);
+    
     if (ApplicationEvent.class.isAssignableFrom(type)) {
       eventHandler.getApplicationEventListeners().computeIfAbsent((Class<? extends ApplicationEvent>) type, __ -> new ArrayList<>())
                   .add(MethodCaller.wrap(method).bindTo(event.getBean()));
