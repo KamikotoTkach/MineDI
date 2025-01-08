@@ -41,19 +41,24 @@ public class BeanData {
   public void searchForDependencies() {
     diContainer.getApplication().getLogger().info("Searching for dependencies of " + clazz);
     
-    List<BeanDependency> fieldDependencies = ReflectionUtils.getFields(clazz.getDeclaredFields()).stream()
+    if (clazz.isInterface()) {
+      dependencies = List.of();
+      return;
+    }
+    
+    Set<BeanDependency> fieldDependencies = new HashSet<>(ReflectionUtils.getFields(clazz.getDeclaredFields()).stream()
                                                             .filter(x -> diContainer.isBean(x.getType()))
                                                             .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))
-                                                            .toList();
+                                                            .toList());
+    if (clazz.getDeclaredConstructors().length == 1) {
+      List<BeanDependency> constructorDependencies = Arrays.stream(clazz.getDeclaredConstructors()[0].getParameterTypes())
+                                                           .filter(diContainer::isBean)
+                                                           .map(x -> new BeanDependency(x, true))
+                                                           .toList();
+      
+      fieldDependencies.addAll(constructorDependencies);
+    }
     
-    List<BeanDependency> constructorDependencies = Arrays.stream(clazz.getDeclaredConstructors()[0].getParameterTypes())
-                                                         .filter(diContainer::isBean)
-                                                         .map(x -> new BeanDependency(x, true))
-                                                         .toList();
-    
-    Set<BeanDependency> distinctDependencies = new HashSet<>(fieldDependencies);
-    distinctDependencies.addAll(constructorDependencies);
-    
-    dependencies = new ArrayList<>(distinctDependencies);
+    dependencies = new ArrayList<>(fieldDependencies);
   }
 }
