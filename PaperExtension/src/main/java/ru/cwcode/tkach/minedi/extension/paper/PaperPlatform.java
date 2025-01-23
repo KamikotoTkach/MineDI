@@ -13,7 +13,7 @@ import ru.cwcode.tkach.config.paper.PaperPluginConfigPlatform;
 import ru.cwcode.tkach.config.relocate.com.fasterxml.jackson.databind.module.SimpleModule;
 import ru.cwcode.tkach.config.repository.yml.YmlRepositoryManager;
 import ru.cwcode.tkach.minedi.DiApplication;
-import ru.cwcode.tkach.minedi.extension.paper.config.*;
+import ru.cwcode.tkach.minedi.common.cwcode.config.*;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginDisableEvent;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginEnableEvent;
 

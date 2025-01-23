@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.minedi.extension.paper.config;
+package ru.cwcode.tkach.minedi.common.cwcode.config;
 
 import ru.cwcode.tkach.config.annotation.Reloadable;
 import ru.cwcode.tkach.config.jackson.yaml.YmlConfig;
