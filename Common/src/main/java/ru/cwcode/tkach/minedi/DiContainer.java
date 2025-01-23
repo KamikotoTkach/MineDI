@@ -68,6 +68,8 @@ public class DiContainer {
     
     singletonBeanProvider().set(as, bean);
     injectBeanInStaticFields(as);
+    
+    application.getEventHandler().handleEvent(new BeanConstructedEvent(bean));
   }
   
   public <T> T create(Class<T> clazz) {
