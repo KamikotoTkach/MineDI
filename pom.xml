@@ -13,6 +13,7 @@
         <module>Common</module>
         <module>Common-CWCode</module>
         <module>PaperExtension</module>
+        <module>VelocityExtension</module>
     </modules>
 
     <properties>
