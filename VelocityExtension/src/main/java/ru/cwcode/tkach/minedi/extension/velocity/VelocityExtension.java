@@ -3,21 +3,24 @@ package ru.cwcode.tkach.minedi.extension.velocity;
 import lombok.Getter;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.extension.Extension;
+import ru.cwcode.tkach.minedi.extension.velocity.processor.PacketListenerAnnotationProcessor;
 import ru.cwcode.tkach.minedi.processing.event.Event;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 public class VelocityExtension implements Extension {
   final List<EventProcessor<? extends Event>> processors = new LinkedList<>();
-  final List<Runnable> delayedTasks = new ArrayList<>();
   @Getter
-  private final Object plugin;
+  private final VelocityPlatform plugin;
   
-  public VelocityExtension(Object velocityPlugin) {
+  public VelocityExtension(VelocityPlatform velocityPlugin) {
     this.plugin = velocityPlugin;
+    
+    if (velocityPlugin.getServer().getPluginManager().getPlugin("ipmc").isPresent()) {
+      processors.add(new PacketListenerAnnotationProcessor(this));
+    }
   }
   
   @Override
@@ -27,14 +30,5 @@ public class VelocityExtension implements Extension {
   
   @Override
   public void onStart(DiApplication application) {
-  }
-  
-  public void addDelayedTask(Runnable runnable) {
-    delayedTasks.add(runnable);
-  }
-  
-  public void onPluginEnable() {
-    delayedTasks.forEach(Runnable::run);
-    delayedTasks.clear();
   }
 }

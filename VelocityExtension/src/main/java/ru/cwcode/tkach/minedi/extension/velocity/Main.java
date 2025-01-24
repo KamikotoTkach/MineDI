@@ -17,6 +17,7 @@ import java.util.logging.Logger;
   dependencies = {
     @Dependency(id = "cwcommands"),
     @Dependency(id = "cwconfig"),
+    @Dependency(id = "ipmc", optional = true),
   }
 )
 public class Main {

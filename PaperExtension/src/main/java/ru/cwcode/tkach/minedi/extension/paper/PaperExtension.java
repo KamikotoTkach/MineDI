@@ -8,6 +8,7 @@ import ru.cwcode.tkach.minedi.extension.Extension;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAdapter;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAnnotationProcessor;
 import ru.cwcode.tkach.minedi.extension.paper.processor.BukkitListenerProcessor;
+import ru.cwcode.tkach.minedi.extension.paper.processor.PacketListenerAnnotationProcessor;
 import ru.cwcode.tkach.minedi.extension.paper.processor.RepeatableAnnotationProcessor;
 import ru.cwcode.tkach.minedi.processing.event.Event;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
@@ -31,6 +32,10 @@ public class PaperExtension implements Extension {
     
     if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
       processors.add(new PlaceholderAnnotationProcessor(new PlaceholderAdapter(this)));
+    }
+    
+    if (Bukkit.getPluginManager().getPlugin("IPMC") != null) {
+      processors.add(new PacketListenerAnnotationProcessor(this));
     }
   }
   
