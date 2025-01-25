@@ -69,6 +69,7 @@ public abstract class VelocityPlatform {
     diApplication.register(ymlConfigManager, YmlConfigManager.class);
     diApplication.register(ymlRepositoryManager, YmlRepositoryManager.class);
     diApplication.register(getPluginContainer(), PluginContainer.class);
+    diApplication.register(getServer(), ProxyServer.class);
     diApplication.register(this);
     
     diApplication.getContainer().populateFields(this);
@@ -76,6 +77,7 @@ public abstract class VelocityPlatform {
     onPrePluginLoad();
     
     diApplication.load();
+    diApplication.start();
     
     diApplication.getEventHandler().handleEvent(new PluginEnableEvent());
     

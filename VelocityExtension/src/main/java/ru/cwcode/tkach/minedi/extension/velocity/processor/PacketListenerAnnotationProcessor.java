@@ -1,6 +1,7 @@
 package ru.cwcode.tkach.minedi.extension.velocity.processor;
 
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.ServerConnection;
 import revxrsal.asm.BoundMethodCaller;
 import revxrsal.asm.MethodCaller;
 import ru.cwcode.tkach.ipmc.Packet;
@@ -31,7 +32,7 @@ public class PacketListenerAnnotationProcessor extends EventProcessor<CustomMeth
     Class<?> first = method.getParameterTypes()[0];
     Class<?> second = method.getParameterTypes().length == 2 ? method.getParameterTypes()[1] : null;
     
-    int playerIndex = Player.class.isAssignableFrom(first) ? 0 : Player.class.isAssignableFrom(second) ? 1 : -1;
+    int connectionIndex = ServerConnection.class.isAssignableFrom(first) ? 0 : ServerConnection.class.isAssignableFrom(second) ? 1 : -1;
     int packetIndex = Packet.class.isAssignableFrom(first) ? 0 : Packet.class.isAssignableFrom(second) ? 1 : -1;
     
     if (packetIndex == -1) {
@@ -44,7 +45,7 @@ public class PacketListenerAnnotationProcessor extends EventProcessor<CustomMeth
     
     IPMC.packetManager().registerIncomingPacket((Class<? extends Packet>)(packetIndex == 0?first:second), (connection, packet) -> {
       Object response;
-      if (playerIndex == -1) {
+      if (connectionIndex == -1) {
         response = boundMethodCaller.call(packet);
       } else {
         response = boundMethodCaller.call(packetIndex == 0 ? packet : connection, packetIndex == 1 ? packet : connection);
