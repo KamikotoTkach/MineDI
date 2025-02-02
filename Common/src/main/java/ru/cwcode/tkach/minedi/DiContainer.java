@@ -111,6 +111,8 @@ public class DiContainer {
         e.printStackTrace();
       }
     });
+    
+    injectBeanInStaticFields(clazz);
   }
   
   

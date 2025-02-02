@@ -30,7 +30,7 @@ public class PacketListenerAnnotationProcessor extends EventProcessor<CustomMeth
     method.setAccessible(true);
     
     Class<?> first = method.getParameterTypes()[0];
-    Class<?> second = method.getParameterTypes().length == 2 ? method.getParameterTypes()[1] : null;
+    Class<?> second = method.getParameterTypes().length == 2 ? method.getParameterTypes()[1] : Class.class; // Class.class here to avoid NPE
     
     int connectionIndex = ServerConnection.class.isAssignableFrom(first) ? 0 : ServerConnection.class.isAssignableFrom(second) ? 1 : -1;
     int packetIndex = Packet.class.isAssignableFrom(first) ? 0 : Packet.class.isAssignableFrom(second) ? 1 : -1;
@@ -43,7 +43,7 @@ public class PacketListenerAnnotationProcessor extends EventProcessor<CustomMeth
     BoundMethodCaller boundMethodCaller = MethodCaller.wrap(method)
                                                       .bindTo(event.getBean());
     
-    IPMC.packetManager().registerIncomingPacket((Class<? extends Packet>)(packetIndex == 0?first:second), (connection, packet) -> {
+    IPMC.packetManager().registerIncomingPacket((Class<? extends Packet>) (packetIndex == 0 ? first : second), (connection, packet) -> {
       Object response;
       if (connectionIndex == -1) {
         response = boundMethodCaller.call(packet);
