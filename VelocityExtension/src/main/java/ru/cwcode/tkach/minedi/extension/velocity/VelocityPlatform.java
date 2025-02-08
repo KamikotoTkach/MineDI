@@ -5,7 +5,9 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.proxy.ProxyServer;
 import org.slf4j.Logger;
+import ru.cwcode.commands.Command;
 import ru.cwcode.tkach.config.base.ConfigPlatform;
+import ru.cwcode.tkach.config.commands.ReloadCommands;
 import ru.cwcode.tkach.config.jackson.yaml.YmlConfigManager;
 import ru.cwcode.tkach.config.relocate.com.fasterxml.jackson.databind.module.SimpleModule;
 import ru.cwcode.tkach.config.repository.yml.YmlRepositoryManager;
@@ -98,6 +100,13 @@ public abstract class VelocityPlatform {
   
   protected void onPrePluginLoad() {
   
+  }
+  
+  protected Command velocityReload() {
+    return ReloadCommands.get(ymlConfigManager, ymlConfig -> {
+      diApplication.getContainer().updateBean(ymlConfig.getClass(), ymlConfig);
+      diApplication.getEventHandler().handleEvent(new ConfigReloadEvent(ymlConfig));
+    });
   }
   
   private ConfigPlatform getConfigPlatform() {
