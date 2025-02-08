@@ -4,6 +4,7 @@ import ru.cwcode.tkach.config.base.Config;
 import ru.cwcode.tkach.config.jackson.yaml.YmlConfig;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructorImpl;
+import ru.cwcode.tkach.minedi.data.BeanData;
 
 import java.util.Optional;
 
@@ -19,6 +20,11 @@ public class ConfigCreator extends ru.cwcode.tkach.config.base.manager.ConfigCre
   @Override
   protected <V extends Config<YmlConfig>> Optional<V> createInstance(Class<V> configClass) {
     Class<?> objectClass = configClass;
-    return Optional.ofNullable((V) beanConstructor.construct((Class<Object>) objectClass, application.getContainer().getData(configClass), application));
+    BeanData beanData = application.getContainer().getData(configClass);
+    if (beanData == null) {
+      return super.createInstance(configClass);
+    }
+    
+    return Optional.ofNullable((V) beanConstructor.construct((Class<Object>) objectClass, beanData, application));
   }
 }
