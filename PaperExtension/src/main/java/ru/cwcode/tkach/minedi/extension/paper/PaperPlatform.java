@@ -78,7 +78,7 @@ public class PaperPlatform extends Bootstrap {
     diApplication.register(this, JavaPlugin.class);
     diApplication.register(this);
     
-    diApplication.getContainer().populateFields(this);
+    diApplication.getContainer().populateBeanFields(this);
     
     debug(() -> "PostLoad");
     

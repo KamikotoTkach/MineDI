@@ -28,10 +28,6 @@ public class DiContainer {
   Map<String, BeanProvider> beanProviders = new HashMap<>();
   Map<Class<?>, List<Field>> staticFields = new HashMap<>();
   
-  public static Object getLazyObject() {
-    return LAZY_OBJECT;
-  }
-  
   public DiContainer(ClassScanner scanner, DiApplication application) {
     this.scanner = scanner;
     this.application = application;
@@ -40,6 +36,10 @@ public class DiContainer {
     
     registerSingleton(this, this.getClass());
     registerSingleton(application, application.getClass());
+  }
+  
+  public static Object getLazyObject() {
+    return LAZY_OBJECT;
   }
   
   public void registerProvider(BeanProvider beanProvider) {
@@ -91,10 +91,6 @@ public class DiContainer {
     return clazz.cast(beanProviders.get(beanData.getScope()).provide(beanData));
   }
   
-  private SingletonBeanProvider singletonBeanProvider() {
-    return (SingletonBeanProvider) beanProviders.get(BeanScope.SINGLETON);
-  }
-  
   public BeanData getData(Class<?> clazz) {
     return beans.get(clazz);
   }
@@ -115,89 +111,30 @@ public class DiContainer {
     injectBeanInStaticFields(clazz);
   }
   
-  
-  protected void registerBeans() {
-    application.getLogger().info("Registering components");
-    classes.forEach(this::registerComponent);
-    
-    application.getLogger().info("Searching beans dependencies");
-    beans.values().forEach(BeanData::searchForDependencies);
-    
-    beans.forEach((clazz, data) -> injectBeanInStaticFields(clazz));
-    
-    constructSingletons();
-  }
-  
-  private void scanForStaticFields() {
-    application.getLogger().info("Scanning for static fields");
-    
-    for (Class<?> clazz : classes) {
-      for (Field declaredField : clazz.getDeclaredFields()) {
-        if (Modifier.isStatic(declaredField.getModifiers())) {
-          staticFields.computeIfAbsent(declaredField.getType(), (e) -> new ArrayList<>())
-                      .add(declaredField);
-        }
-      }
-    }
-  }
-  
-  private void injectBeanInStaticFields(Class<?> clazz) {
-    application.getLogger().info("Injecting " + clazz + " in static fields");
-    
-    for (Field field : staticFields.getOrDefault(clazz, List.of())) {
-      
-      field.setAccessible(true);
-      try {
-        if (field.get(null) == null) {
-          field.set(null, get(clazz).orElseThrow());
-        }
-      } catch (IllegalAccessException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
-  
-  protected void scanClasses() {
-    application.getLogger().info("Scanning classes...");
-    classes = scanner.scan();
-    application.getLogger().info("Founded " + classes.size() + " classes");
-    
-    scanForStaticFields();
-  }
-  
   public BeanProvider getBeanProvider(String scope) {
     return beanProviders.get(scope);
   }
   
-  private void constructSingletons() {
-    application.getLogger().info("Constructing singletons");
-    
-    SingletonBeanProvider singletonBeanProvider = (SingletonBeanProvider) getBeanProvider(BeanScope.SINGLETON);
-    
-    beans.forEach((clazz, data) -> {
-      if (!data.getScope().equals(BeanScope.SINGLETON)) return;
-      
-      if (!data.isAnnotationPresent(Lazy.class)) {
-        createOrGet(clazz);
-      }
-    });
-    
-    singletonBeanProvider.getBeanClasses().forEach(this::populateFields);
+  public void populateExternalObject(Object instance) {
+    ReflectionUtils.getFields(instance.getClass()).stream()
+                   .filter(x -> isBean(x.getType()))
+                   
+                   .forEach(field -> {
+                     try {
+                       field.setAccessible(true);
+                       
+                       Object fieldValue = field.get(instance);
+                       
+                       if (fieldValue == null) {
+                         field.set(instance, createOrGet(field.getType()));
+                       }
+                     } catch (Exception e) {
+                       e.printStackTrace();
+                     }
+                   });
   }
   
-  private <T> T create0(Class<T> clazz) {
-    BeanData data = beans.get(clazz);
-    
-    T instance = application.getBeanConstructors().construct(clazz, data);
-    
-    populateFields(instance);
-    
-    application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
-    
-    return instance;
-  }
-  
-  public void populateFields(Object instance) {
+  public void populateBeanFields(Object instance) {
     ReflectionUtils.getFields(instance.getClass()).stream()
                    .filter(x -> isBean(x.getType()))
                    .sorted(Comparator.comparingInt(x -> x.isAnnotationPresent(Required.class) ? 0 : 1)) //first required
@@ -223,19 +160,6 @@ public class DiContainer {
                    });
   }
   
-  private boolean isBeanPopulated(Object object) {
-    return ReflectionUtils.getFields(object.getClass()).stream()
-                          .filter(x -> isBean(x.getType()) && x.isAnnotationPresent(Required.class))
-                          .allMatch(field -> {
-                            try {
-                              field.setAccessible(true);
-                              return field.get(object) != null;
-                            } catch (IllegalAccessException e) {
-                              throw new RuntimeException(e);
-                            }
-                          });
-  }
-  
   public void registerComponent(Class<?> clazz) {
     registerBean(clazz, false);
   }
@@ -254,5 +178,100 @@ public class DiContainer {
   
   public boolean validateBean(Class<?> clazz) {
     return clazz.getDeclaredConstructors().length == 1;
+  }
+  
+  protected void registerBeans() {
+    application.getLogger().info("Registering components");
+    classes.forEach(this::registerComponent);
+    
+    application.getLogger().info("Searching beans dependencies");
+    beans.values().forEach(BeanData::searchForDependencies);
+    
+    beans.forEach((clazz, data) -> injectBeanInStaticFields(clazz));
+    
+    constructSingletons();
+  }
+  
+  protected void scanClasses() {
+    application.getLogger().info("Scanning classes...");
+    classes = scanner.scan();
+    application.getLogger().info("Founded " + classes.size() + " classes");
+    
+    scanForStaticFields();
+  }
+  
+  private SingletonBeanProvider singletonBeanProvider() {
+    return (SingletonBeanProvider) beanProviders.get(BeanScope.SINGLETON);
+  }
+  
+  private void scanForStaticFields() {
+    application.getLogger().info("Scanning for static fields");
+    
+    for (Class<?> clazz : classes) {
+      for (Field declaredField : clazz.getDeclaredFields()) {
+        if (Modifier.isStatic(declaredField.getModifiers())) {
+          staticFields.computeIfAbsent(declaredField.getType(), (e) -> new ArrayList<>())
+                      .add(declaredField);
+        }
+      }
+    }
+  }
+  
+  private void injectBeanInStaticFields(Class<?> clazz) {
+    application.getLogger().info("Injecting " + clazz + " in static fields");
+    
+    for (Field field : staticFields.getOrDefault(clazz, List.of())) {
+      
+      try {
+        field.setAccessible(true);
+        
+        if (Modifier.isFinal(field.getModifiers())) continue;
+        
+        field.set(null, get(clazz).orElseThrow());
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+  
+  private void constructSingletons() {
+    application.getLogger().info("Constructing singletons");
+    
+    SingletonBeanProvider singletonBeanProvider = (SingletonBeanProvider) getBeanProvider(BeanScope.SINGLETON);
+    
+    beans.forEach((clazz, data) -> {
+      if (!data.getScope().equals(BeanScope.SINGLETON)) return;
+      
+      if (!data.isAnnotationPresent(Lazy.class)) {
+        createOrGet(clazz);
+      }
+    });
+    
+    singletonBeanProvider.getBeanClasses().forEach(this::populateBeanFields);
+  }
+  
+  private <T> T create0(Class<T> clazz) {
+    BeanData data = beans.get(clazz);
+    
+    T instance = application.getBeanConstructors().construct(clazz, data);
+    
+    populateBeanFields(instance);
+    
+    application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
+    
+    return instance;
+  }
+  
+  private boolean isBeanPopulated(Object object) {
+    return ReflectionUtils.getFields(object.getClass()).stream()
+                          .filter(x -> isBean(x.getType()) && x.isAnnotationPresent(Required.class))
+                          .allMatch(field -> {
+                            try {
+                              field.setAccessible(true);
+                              return field.get(object) != null;
+                            } catch (IllegalAccessException e) {
+                              throw new RuntimeException(e);
+                            }
+                          });
   }
 }
