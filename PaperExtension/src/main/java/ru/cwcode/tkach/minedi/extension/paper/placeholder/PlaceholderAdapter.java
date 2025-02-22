@@ -74,6 +74,8 @@ public class PlaceholderAdapter {
   }
   
   protected Object[] adapt(@Nullable OfflinePlayer player, Class<?>[] types, String[] strParameters) {
+    if (strParameters.length == 1 && strParameters[0].isEmpty()) strParameters = new String[0];
+    
     int hasPlayer = types.length > 0 && OfflinePlayer.class.isAssignableFrom(types[0]) ? 1 : 0;
     
     if (types.length == 1 + hasPlayer && types[hasPlayer].equals(String.class.arrayType())) {

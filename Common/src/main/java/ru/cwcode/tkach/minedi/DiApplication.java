@@ -1,6 +1,7 @@
 package ru.cwcode.tkach.minedi;
 
 import lombok.Getter;
+import ru.cwcode.tkach.minedi.condition.ConditionParser;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructorImpl;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructors;
 import ru.cwcode.tkach.minedi.extension.Extension;
@@ -23,6 +24,8 @@ public class DiApplication {
   private final BeanConstructors beanConstructors;
   private final List<Extension> extensions = new LinkedList<>();
   private final Logger logger;
+  private final ConditionParser conditionParser = new ConditionParser();
+  
   boolean isLoaded = false;
   
   public DiApplication(File jarfile, String packageName) {

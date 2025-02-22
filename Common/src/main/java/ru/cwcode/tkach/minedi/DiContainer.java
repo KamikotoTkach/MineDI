@@ -7,6 +7,7 @@ import ru.cwcode.tkach.minedi.annotation.Required;
 import ru.cwcode.tkach.minedi.data.BeanData;
 import ru.cwcode.tkach.minedi.exception.CircularDependencyException;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
+import ru.cwcode.tkach.minedi.processing.event.ComponentPreRegisteredEvent;
 import ru.cwcode.tkach.minedi.provider.BeanProvider;
 import ru.cwcode.tkach.minedi.provider.SingletonBeanProvider;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
@@ -15,6 +16,7 @@ import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DiContainer {
   private static final Object LAZY_OBJECT = new Object();
@@ -24,9 +26,9 @@ public class DiContainer {
   
   ClassScanner scanner;
   Set<Class<?>> classes;
-  Map<Class<?>, BeanData> beans = new HashMap<>();
-  Map<String, BeanProvider> beanProviders = new HashMap<>();
-  Map<Class<?>, List<Field>> staticFields = new HashMap<>();
+  Map<Class<?>, BeanData> beans = new ConcurrentHashMap<>();
+  Map<String, BeanProvider> beanProviders = new ConcurrentHashMap<>();
+  Map<Class<?>, List<Field>> staticFields = new ConcurrentHashMap<>();
   
   public DiContainer(ClassScanner scanner, DiApplication application) {
     this.scanner = scanner;
@@ -61,10 +63,14 @@ public class DiContainer {
   }
   
   public void registerSingleton(Object bean, Class<?> as) {
-    BeanData value = new BeanData(as, this);
-    this.beans.put(as, value);
+    BeanData beanData;
     
-    value.searchForDependencies();
+    if(!beans.containsKey(as)) {
+      beanData = new BeanData(as, this);
+      this.beans.put(as, beanData);
+      
+      beanData.searchForDependencies();
+    }
     
     singletonBeanProvider().set(as, bean);
     injectBeanInStaticFields(as);
@@ -107,6 +113,10 @@ public class DiContainer {
         e.printStackTrace();
       }
     });
+    
+    if (getBeanProvider(beanData.getScope()) instanceof SingletonBeanProvider sbp) {
+      sbp.set(clazz, newObject);
+    }
     
     injectBeanInStaticFields(clazz);
   }
@@ -172,6 +182,7 @@ public class DiContainer {
         return;
       }
       
+      application.getEventHandler().handleEvent(new ComponentPreRegisteredEvent(clazz));
       beans.put(clazz, value);
     }
   }
