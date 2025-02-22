@@ -1,7 +1,4 @@
-import beans.SimpleBean;
-import beans.SomeBean1;
-import beans.SomeBean2;
-import beans.StaticInject;
+import beans.*;
 import beans.circular.Cd1;
 import beans.circularOptional.Cdo1;
 import org.junit.jupiter.api.BeforeAll;
@@ -18,6 +15,17 @@ public class TestInjection {
   public static void init() {
     application = new DiApplication(new TestClassScanner("target/test-classes/"));
     application.start();
+  }
+  
+  @Test
+  public void testPopulateExternalObject() {
+    SimpleBean bean = application.get(SimpleBean.class).orElseThrow();
+    ExternalObjectWithBeans external = new ExternalObjectWithBeans();
+    
+    application.getContainer().populateExternalObject(external);
+    
+    assertEquals(ExternalObjectWithBeans.getSimpleBeanStatic(), bean);
+    assertEquals(external.getSimpleBean(), bean);
   }
   
   @Test
