@@ -1,5 +1,6 @@
 package ru.cwcode.tkach.minedi.extension.paper;
 
+import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -24,6 +25,7 @@ import java.util.logging.Logger;
 public class PaperPlatform extends Bootstrap {
   protected boolean debug = false;
   
+  @Getter
   protected DiApplication diApplication;
   
   protected YmlConfigManager ymlConfigManager;

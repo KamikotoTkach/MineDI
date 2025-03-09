@@ -7,6 +7,7 @@ import ru.cwcode.tkach.minedi.annotation.Required;
 import ru.cwcode.tkach.minedi.data.BeanData;
 import ru.cwcode.tkach.minedi.exception.CircularDependencyException;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
+import ru.cwcode.tkach.minedi.processing.event.BeanDestroyEvent;
 import ru.cwcode.tkach.minedi.processing.event.ComponentPreRegisteredEvent;
 import ru.cwcode.tkach.minedi.provider.BeanProvider;
 import ru.cwcode.tkach.minedi.provider.SingletonBeanProvider;
@@ -114,7 +115,12 @@ public class DiContainer {
       }
     });
     
-    if (getBeanProvider(beanData.getScope()) instanceof SingletonBeanProvider sbp) {
+    BeanProvider beanProvider = getBeanProvider(beanData.getScope());
+    if (beanProvider.getBeanClasses().contains(clazz)) {
+      application.getEventHandler().handleEvent(new BeanDestroyEvent(beanProvider.provide(beanData)));
+    }
+    
+    if (beanProvider instanceof SingletonBeanProvider sbp) {
       sbp.set(clazz, newObject);
     }
     
