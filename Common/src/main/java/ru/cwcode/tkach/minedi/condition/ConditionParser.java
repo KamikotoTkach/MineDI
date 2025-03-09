@@ -22,6 +22,6 @@ public class ConditionParser {
     
     String args = condition.substring(argStarts + 1, argEnds);
     
-    return conditionInstance.process(args);
+    return conditionInstance.process(args) ^ inverse;
   }
 }
