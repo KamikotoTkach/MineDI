@@ -1,19 +1,15 @@
 package ru.cwcode.tkach.minedi.processing.processor;
 
 import lombok.SneakyThrows;
-import revxrsal.asm.MethodCaller;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.annotation.Bean;
 import ru.cwcode.tkach.minedi.annotation.EventListener;
 import ru.cwcode.tkach.minedi.processing.EventHandlerImpl;
-import ru.cwcode.tkach.minedi.processing.event.ApplicationEvent;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
 import ru.cwcode.tkach.minedi.processing.event.CustomMethodAnnotationEvent;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.ArrayList;
 
 public class MethodAnnotationProcessor extends EventProcessor<BeanConstructedEvent> {
   
@@ -50,7 +46,7 @@ public class MethodAnnotationProcessor extends EventProcessor<BeanConstructedEve
       Object result = x.invoke(bean);
       
       if (result != null) {
-        Class<?> as = beanAnnotation.as() == Object.class ? result.getClass() : beanAnnotation.as();
+        Class<?> as = beanAnnotation.as() == Object.class ? x.getReturnType() : beanAnnotation.as();
         application.getContainer().registerSingleton(result, as);
       }
     }
