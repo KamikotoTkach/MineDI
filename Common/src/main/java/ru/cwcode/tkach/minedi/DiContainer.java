@@ -124,6 +124,8 @@ public class DiContainer {
       sbp.set(clazz, newObject);
     }
     
+    application.getEventHandler().handleEvent(new BeanConstructedEvent(newObject));
+    
     injectBeanInStaticFields(clazz);
   }
   
