@@ -46,7 +46,7 @@ public class BeanData {
       return;
     }
     
-    Set<BeanDependency> fieldDependencies = new HashSet<>(ReflectionUtils.getFields(clazz.getDeclaredFields()).stream()
+    Set<BeanDependency> fieldDependencies = new HashSet<>(ReflectionUtils.getFields(clazz).stream()
                                                             .filter(x -> diContainer.isBean(x.getType()))
                                                             .map(x -> new BeanDependency(x.getType(), x.isAnnotationPresent(Required.class)))
                                                             .toList());

@@ -4,6 +4,7 @@ import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.proxy.ProxyServer;
+import lombok.Getter;
 import org.slf4j.Logger;
 import ru.cwcode.commands.Command;
 import ru.cwcode.tkach.config.base.ConfigPlatform;
@@ -21,6 +22,7 @@ import java.io.File;
 import java.nio.file.Path;
 
 public abstract class VelocityPlatform {
+  @Getter
   protected DiApplication diApplication;
   
   protected YmlConfigManager ymlConfigManager;

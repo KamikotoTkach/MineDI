@@ -3,4 +3,4 @@ main: ru.cwcode.tkach.minedi.extension.paper.Main
 version: '${project.version}'
 api-version: '1.16'
 depend: ["CWCommands", "CWConfig"]
-softdepend: ["IPMC", "PlaceholderAPI"]
+softdepend: ["IPMC", "CWConfigWebEditor", "PlaceholderAPI"]

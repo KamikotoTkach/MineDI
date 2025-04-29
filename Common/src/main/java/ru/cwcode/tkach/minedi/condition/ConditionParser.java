@@ -12,6 +12,8 @@ public class ConditionParser {
   }
   
   public boolean parse(String condition) {
+    if (condition == null || condition.isEmpty()) return true;
+    
     boolean inverse = condition.startsWith("!");
     int argStarts = condition.indexOf("(");
     int argEnds = condition.indexOf(")");
@@ -22,6 +24,6 @@ public class ConditionParser {
     
     String args = condition.substring(argStarts + 1, argEnds);
     
-    return conditionInstance.process(args);
+    return conditionInstance.process(args) ^ inverse;
   }
 }

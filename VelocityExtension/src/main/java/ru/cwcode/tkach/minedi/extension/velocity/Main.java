@@ -18,6 +18,7 @@ import java.util.logging.Logger;
     @Dependency(id = "cwcommands"),
     @Dependency(id = "cwconfig"),
     @Dependency(id = "ipmc", optional = true),
+    @Dependency(id = "cwconfig_webeditor", optional = true),
   }
 )
 public class Main {

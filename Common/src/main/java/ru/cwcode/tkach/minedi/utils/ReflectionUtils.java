@@ -34,10 +34,6 @@ public class ReflectionUtils {
     return classes;
   }
   
-  public static List<Field> getFields(Object object) {
-    return getFields(object.getClass());
-  }
-  
   public static List<Field> getFields(Class<?> clazz) {
     if (clazz == null) return Collections.emptyList();
     

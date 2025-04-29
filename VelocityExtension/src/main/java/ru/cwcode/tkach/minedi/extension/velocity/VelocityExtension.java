@@ -3,6 +3,7 @@ package ru.cwcode.tkach.minedi.extension.velocity;
 import lombok.Getter;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.extension.Extension;
+import ru.cwcode.tkach.minedi.extension.velocity.listener.ConfigReloadByWebEditorListener;
 import ru.cwcode.tkach.minedi.extension.velocity.processor.ListenerRegisterProcessor;
 import ru.cwcode.tkach.minedi.extension.velocity.processor.PacketListenerAnnotationProcessor;
 import ru.cwcode.tkach.minedi.processing.event.Event;
@@ -33,5 +34,8 @@ public class VelocityExtension implements Extension {
   
   @Override
   public void onStart(DiApplication application) {
+    plugin.getServer().getPluginManager().getPlugin("cwconfig_webeditor").ifPresent(pluginContainer -> {
+      new ConfigReloadByWebEditorListener(application);
+    });
   }
 }
