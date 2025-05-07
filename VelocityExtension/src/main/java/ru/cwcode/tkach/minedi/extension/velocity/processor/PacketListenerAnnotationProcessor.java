@@ -52,7 +52,11 @@ public class PacketListenerAnnotationProcessor extends EventProcessor<CustomMeth
       }
       
       if (response instanceof Packet responsePacket) {
-        IPMC.packetManager().send(responsePacket, connection);
+        if (IPMC.packetManager().isAwaitingResponse(packet)) {
+          IPMC.packetManager().sendResponse(packet, responsePacket);
+        } else {
+          IPMC.packetManager().send(responsePacket, connection);
+        }
       }
     });
   }

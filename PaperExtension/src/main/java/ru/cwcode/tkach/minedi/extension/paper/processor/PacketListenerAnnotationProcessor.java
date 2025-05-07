@@ -12,7 +12,6 @@ import ru.cwcode.tkach.minedi.processing.event.CustomMethodAnnotationEvent;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 
 public class PacketListenerAnnotationProcessor extends EventProcessor<CustomMethodAnnotationEvent> {
   private final PaperExtension extension;
@@ -52,7 +51,11 @@ public class PacketListenerAnnotationProcessor extends EventProcessor<CustomMeth
       }
       
       if (response instanceof Packet responsePacket) {
-        IPMC.packetManager().send(responsePacket, pl);
+        if (IPMC.packetManager().isAwaitingResponse(packet)) {
+          IPMC.packetManager().sendResponse(packet, responsePacket);
+        } else {
+          IPMC.packetManager().send(responsePacket, pl);
+        }
       }
     });
   }
