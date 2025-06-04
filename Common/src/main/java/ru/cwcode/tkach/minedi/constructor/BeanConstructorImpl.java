@@ -1,8 +1,8 @@
 package ru.cwcode.tkach.minedi.constructor;
 
 import ru.cwcode.tkach.minedi.DiApplication;
-import ru.cwcode.tkach.minedi.data.BeanDependency;
 import ru.cwcode.tkach.minedi.data.BeanData;
+import ru.cwcode.tkach.minedi.data.BeanDependency;
 import ru.cwcode.tkach.minedi.utils.CollectionUtils;
 
 import java.lang.reflect.Constructor;

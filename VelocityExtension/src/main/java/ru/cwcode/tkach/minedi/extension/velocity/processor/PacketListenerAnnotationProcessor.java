@@ -1,6 +1,5 @@
 package ru.cwcode.tkach.minedi.extension.velocity.processor;
 
-import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
 import revxrsal.asm.BoundMethodCaller;
 import revxrsal.asm.MethodCaller;
