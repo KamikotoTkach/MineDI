@@ -11,7 +11,7 @@ public class TestConditions {
   
   @BeforeAll
   public static void init() {
-    application = new DiApplication(new TestClassScanner("target/test-classes/"));
+    application = new DiApplication(new TestLogger(), new TestClassScanner("target/test-classes/"));
     application.getConditionParser().register(new EqualsCondition());
     application.start();
   }

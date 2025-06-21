@@ -13,7 +13,7 @@ public class TestInjection {
   
   @BeforeAll
   public static void init() {
-    application = new DiApplication(new TestClassScanner("target/test-classes/"));
+    application = new DiApplication(new TestLogger(), new TestClassScanner("target/test-classes/"));
     application.start();
   }
   

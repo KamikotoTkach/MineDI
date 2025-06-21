@@ -17,6 +17,8 @@ import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.common.cwcode.config.*;
 import ru.cwcode.tkach.minedi.extension.velocity.event.PluginDisableEvent;
 import ru.cwcode.tkach.minedi.extension.velocity.event.PluginEnableEvent;
+import ru.cwcode.tkach.minedi.extension.velocity.logger.VelocityLogger;
+import ru.cwcode.tkach.minedi.logging.Log;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -28,6 +30,7 @@ public abstract class VelocityPlatform {
   protected YmlConfigManager ymlConfigManager;
   protected YmlRepositoryManager ymlRepositoryManager;
   protected VelocityExtension velocityExtension;
+  protected Log logger;
   
   protected VelocityPlatform() {
     Main.plugins.add(this);  // т.к. нет возможности зарегать листенер до того, как плагин будет зарегистрирован,
@@ -53,7 +56,9 @@ public abstract class VelocityPlatform {
   }
   
   void onProxyInitialization() {
-    diApplication = new DiApplication(getPluginFile(), getClass().getPackageName());
+    logger = new VelocityLogger(this);
+    
+    diApplication = new DiApplication(logger, getPluginFile(), getClass().getPackageName());
     
     diApplication.registerExtension(velocityExtension = new VelocityExtension(this));
     

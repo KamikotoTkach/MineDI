@@ -9,7 +9,7 @@ public class TestBeanAnnotation {
   
   @BeforeAll
   static void setUpBeforeClass() {
-    application = new DiApplication(new TestClassScanner("target/test-classes/"));
+    application = new DiApplication(new TestLogger(), new TestClassScanner("target/test-classes/"));
     application.start();
   }
   

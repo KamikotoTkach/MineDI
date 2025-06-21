@@ -5,6 +5,7 @@ import ru.cwcode.tkach.minedi.condition.ConditionParser;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructorImpl;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructors;
 import ru.cwcode.tkach.minedi.extension.Extension;
+import ru.cwcode.tkach.minedi.logging.Log;
 import ru.cwcode.tkach.minedi.processing.EventHandler;
 import ru.cwcode.tkach.minedi.processing.EventHandlerImpl;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
@@ -23,23 +24,21 @@ public class DiApplication {
   private final EventHandler eventHandler;
   private final BeanConstructors beanConstructors;
   private final List<Extension> extensions = new LinkedList<>();
-  private final Logger logger;
+  private final Log logger;
   private final ConditionParser conditionParser = new ConditionParser();
   
   boolean isLoaded = false;
   
-  public DiApplication(File jarfile, String packageName) {
-    this(JarClassScanner.builder()
+  public DiApplication(Log logger, File jarfile, String packageName) {
+    this(logger, JarClassScanner.builder()
                         .jar(jarfile)
                         .packageName(packageName)
                         .filter(s -> !s.endsWith("Integration.class"))
                         .build());
   }
   
-  public DiApplication(ClassScanner scanner) {
-    this.logger = Logger.getLogger("MineDI");
-    this.logger.setLevel(Level.WARNING);
-    
+  public DiApplication(Log logger, ClassScanner scanner) {
+    this.logger = logger;
     this.eventHandler = new EventHandlerImpl(this);
     this.container = new DiContainer(scanner, this);
     this.beanConstructors = new BeanConstructors(this);

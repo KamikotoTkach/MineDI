@@ -17,14 +17,12 @@ import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.common.cwcode.config.*;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginDisableEvent;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginEnableEvent;
+import ru.cwcode.tkach.minedi.extension.paper.logger.PaperLogger;
+import ru.cwcode.tkach.minedi.logging.Log;
 
-import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.io.File;
 
 public class PaperPlatform extends Bootstrap {
-  protected boolean debug = false;
-  
   @Getter
   protected DiApplication diApplication;
   
@@ -32,31 +30,20 @@ public class PaperPlatform extends Bootstrap {
   protected YmlRepositoryManager ymlRepositoryManager;
   protected PaperExtension paperExtension;
   
-  protected Logger logger;
+  protected Log logger;
   
-  public void debug(Supplier<String> log) {
-    if (debug) {
-      try {
-        logger.info(log.get());
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
+  @Override
+  public @NotNull File getFile() {
+    return super.getFile();
   }
   
   @Override
   public void onLoad() {
-    logger = getLogger();
+    logger = new PaperLogger(this);
     
-    if (this.getDescription().getVersion().toLowerCase().contains("debug")) {
-      debug = true;
-      logger.setLevel(Level.ALL);
-    }
+    logger.debug("PreLoad");
     
-    debug(() -> "PreLoad");
-    
-    diApplication = new DiApplication(getFile(), getClass().getPackageName());
-    if (debug) diApplication.getLogger().setLevel(Level.ALL);
+    diApplication = new DiApplication(logger, getFile(), getClass().getPackageName());
     diApplication.load();
     
     diApplication.registerExtension(paperExtension = new PaperExtension(this));
@@ -74,21 +61,19 @@ public class PaperPlatform extends Bootstrap {
     diApplication.getBeanConstructors().getConstructors().addFirst(new RepositoryConstructor(ymlRepositoryManager));
     
     diApplication.register(diApplication);
-    diApplication.register(logger, Logger.class);
+    diApplication.register(logger, Log.class);
     diApplication.register(ymlConfigManager, YmlConfigManager.class);
     diApplication.register(ymlRepositoryManager, YmlRepositoryManager.class);
     diApplication.register(this, JavaPlugin.class);
     diApplication.register(this);
     
-    diApplication.getContainer().populateBeanFields(this);
     
-    debug(() -> "PostLoad");
-    
+    logger.debug("PostLoad");
     initialize();
     
-    debug(() -> "PreAsyncTask");
+    logger.debug("PreAsyncTask");
     super.onLoad();
-    debug(() -> "PostAsyncTask");
+    logger.debug("PostAsyncTask");
   }
   
   protected void initialize() {
@@ -97,7 +82,7 @@ public class PaperPlatform extends Bootstrap {
   
   @Override
   public void onDisable() {
-    debug(() -> "PreDisable");
+    logger.debug("PreDisable");
     
     ymlConfigManager.saveAll(options -> options.async(false)
                                                .silent(false));
@@ -105,28 +90,25 @@ public class PaperPlatform extends Bootstrap {
     
     diApplication.getEventHandler().handleEvent(new PluginDisableEvent());
     
-    debug(() -> "PostDisable");
+    logger.debug("PostDisable");
   }
   
   @Override
   public void onEnable() {
-    if (debug) {
-      logger.setLevel(Level.ALL);
-      diApplication.getLogger().setLevel(Level.ALL);
-    }
-    
     Bukkit.getPluginManager().registerEvents(new ReloadCatcher(), this);
     
-    debug(() -> "Pre start");
+    logger.debug("Pre start");
     diApplication.start();
     
-    debug(() -> "Pre extension enable");
+    diApplication.getContainer().populateBeanFields(this);
+    
+    logger.debug("Pre extension enable");
     paperExtension.onPluginEnable();
     
-    debug(() -> "Pre async task waiting");
+    logger.debug("Pre async task waiting");
     super.onEnable();
     
-    debug(() -> "Pre plugin enabled event");
+    logger.debug("Pre plugin enabled event");
     diApplication.getEventHandler().handleEvent(new PluginEnableEvent());
   }
   
