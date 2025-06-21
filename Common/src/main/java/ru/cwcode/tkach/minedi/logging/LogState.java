@@ -4,7 +4,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 public class LogState {
-  public static final Map<LogLevel, Boolean> DEFAULT_STATE = Map.of(LogLevel.DEBUG, true,
+  public static final Map<LogLevel, Boolean> DEFAULT_STATE = Map.of(LogLevel.DEBUG, false,
                                                                     LogLevel.INFO, true,
                                                                     LogLevel.WARNING, true,
                                                                     LogLevel.ERROR, true);
