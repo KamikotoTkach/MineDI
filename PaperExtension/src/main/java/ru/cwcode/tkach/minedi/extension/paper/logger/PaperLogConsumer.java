@@ -26,8 +26,7 @@ public class PaperLogConsumer implements LogConsumer {
   @Override
   public void consume(String log, LogLevel level) {
     Level l = switch (level) {
-      case DEBUG -> Level.FINE;
-      case INFO -> Level.INFO;
+      case DEBUG, INFO -> Level.INFO; //because bukkit handling only "info", "warning", "severe" levels
       case WARNING -> Level.WARNING;
       case ERROR -> Level.SEVERE;
     };
