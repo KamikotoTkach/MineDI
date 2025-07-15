@@ -22,16 +22,21 @@ public class MethodAnnotationProcessor extends EventProcessor<BeanConstructedEve
   
   @Override
   public void process(BeanConstructedEvent event, DiApplication application) {
-    for (Method method : event.getBean().getClass().getDeclaredMethods()) {
-      for (Annotation annotation : method.getAnnotations()) {
-        if (annotation.annotationType().getName().startsWith("java.")) continue;
-        if (annotation.annotationType().equals(EventListener.class)) {
-          eventHandler.registerApplicationEventListener(event.getBean(), method);
+    Class<?> clazz = event.getBean().getClass();
+    
+    while (clazz != Object.class && clazz != null) {
+      for (Method method : clazz.getDeclaredMethods()) {
+        for (Annotation annotation : method.getAnnotations()) {
+          if (annotation.annotationType().getName().startsWith("java.")) continue;
+          if (annotation.annotationType().equals(EventListener.class)) {
+            eventHandler.registerApplicationEventListener(event.getBean(), method);
+          }
+          handleBeanAnnotation(application, method, event.getBean());
+          
+          application.getEventHandler().handleEvent(new CustomMethodAnnotationEvent(event.getBean(), method, annotation));
         }
-        handleBeanAnnotation(application, method, event.getBean());
-        
-        application.getEventHandler().handleEvent(new CustomMethodAnnotationEvent(event.getBean(), method, annotation));
       }
+      clazz = clazz.getSuperclass();
     }
   }
   
