@@ -21,16 +21,25 @@ import ru.cwcode.tkach.minedi.extension.paper.logger.PaperLogger;
 import ru.cwcode.tkach.minedi.logging.Log;
 
 import java.io.File;
+import java.util.LinkedList;
+import java.util.List;
 
 public class PaperPlatform extends Bootstrap {
   @Getter
   protected DiApplication diApplication;
-  
+  @Getter
   protected YmlConfigManager ymlConfigManager;
+  @Getter
   protected YmlRepositoryManager ymlRepositoryManager;
   protected PaperExtension paperExtension;
   
   protected Log logger;
+  
+  protected List<Runnable> preEnableHooks = new LinkedList<>();
+  
+  public void addPreEnableHook(Runnable runnable) {
+    preEnableHooks.add(runnable);
+  }
   
   @Override
   public @NotNull File getFile() {
@@ -95,6 +104,11 @@ public class PaperPlatform extends Bootstrap {
   
   @Override
   public void onEnable() {
+    preEnableHooks.removeIf(runnable -> {
+      runnable.run();
+      return true;
+    });
+    
     Bukkit.getPluginManager().registerEvents(new ReloadCatcher(), this);
     
     logger.debug("Pre start");

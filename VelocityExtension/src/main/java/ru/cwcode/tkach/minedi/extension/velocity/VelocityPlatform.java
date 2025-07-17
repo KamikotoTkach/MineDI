@@ -22,15 +22,24 @@ import ru.cwcode.tkach.minedi.logging.Log;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.LinkedList;
+import java.util.List;
 
 public abstract class VelocityPlatform {
   @Getter
   protected DiApplication diApplication;
-  
+  @Getter
   protected YmlConfigManager ymlConfigManager;
+  @Getter
   protected YmlRepositoryManager ymlRepositoryManager;
   protected VelocityExtension velocityExtension;
   protected Log logger;
+  
+  protected List<Runnable> preEnableHooks = new LinkedList<>();
+  
+  public void addPreEnableHook(Runnable runnable) {
+    preEnableHooks.add(runnable);
+  }
   
   protected VelocityPlatform() {
     Main.plugins.add(this);  // т.к. нет возможности зарегать листенер до того, как плагин будет зарегистрирован,
@@ -86,6 +95,12 @@ public abstract class VelocityPlatform {
     onPrePluginLoad();
     
     diApplication.load();
+    
+    preEnableHooks.removeIf(runnable -> {
+      runnable.run();
+      return true;
+    });
+    
     diApplication.start();
     
     diApplication.getEventHandler().handleEvent(new PluginEnableEvent());
