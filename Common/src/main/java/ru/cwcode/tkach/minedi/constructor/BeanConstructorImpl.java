@@ -3,6 +3,7 @@ package ru.cwcode.tkach.minedi.constructor;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.data.BeanData;
 import ru.cwcode.tkach.minedi.data.BeanDependency;
+import ru.cwcode.tkach.minedi.processing.event.BeanCreatedEvent;
 import ru.cwcode.tkach.minedi.utils.CollectionUtils;
 
 import java.lang.reflect.Constructor;
@@ -31,7 +32,11 @@ public class BeanConstructorImpl implements BeanConstructor {
     }
     
     try {
-      return (T) constructor.newInstance(parameters);
+      T bean = (T) constructor.newInstance(parameters);
+      BeanCreatedEvent event = new BeanCreatedEvent(bean);
+      application.getEventHandler().handleEvent(event);
+      
+      return (T) event.getBean();
     } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
       throw new RuntimeException(e);
     }

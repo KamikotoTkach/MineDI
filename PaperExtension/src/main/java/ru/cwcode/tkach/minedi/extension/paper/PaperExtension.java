@@ -9,6 +9,7 @@ import ru.cwcode.tkach.minedi.extension.paper.condition.HasPluginCondition;
 import ru.cwcode.tkach.minedi.extension.paper.listener.ConfigReloadByWebEditorListener;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAdapter;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAnnotationProcessor;
+import ru.cwcode.tkach.minedi.extension.paper.processor.AsyncAnnotationProcessor;
 import ru.cwcode.tkach.minedi.extension.paper.processor.BukkitListenerProcessor;
 import ru.cwcode.tkach.minedi.extension.paper.processor.PacketListenerAnnotationProcessor;
 import ru.cwcode.tkach.minedi.extension.paper.processor.RepeatableAnnotationProcessor;
@@ -29,6 +30,7 @@ public class PaperExtension implements Extension {
     this.plugin = plugin;
     
     processors = new LinkedList<>();
+    processors.add(new AsyncAnnotationProcessor());
     processors.add(new BukkitListenerProcessor(this));
     processors.add(new RepeatableAnnotationProcessor(this));
     
