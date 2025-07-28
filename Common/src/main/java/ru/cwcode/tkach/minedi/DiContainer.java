@@ -274,6 +274,10 @@ public class DiContainer {
     
     T instance = application.getBeanConstructors().construct(clazz, data);
     
+    if (data.getScope().equals(BeanScope.SINGLETON)) {
+      ((SingletonBeanProvider) getBeanProvider(BeanScope.SINGLETON)).set(clazz, instance);
+    }
+    
     populateBeanFields(instance);
     
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));

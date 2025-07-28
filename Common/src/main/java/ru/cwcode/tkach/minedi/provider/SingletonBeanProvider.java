@@ -42,8 +42,8 @@ public class SingletonBeanProvider implements BeanProvider {
     return value;
   }
   
-  public void set(Class<?> clazz, Object lazyObject) {
-    singletons.put(clazz, lazyObject);
+  public void set(Class<?> clazz, Object object) {
+    singletons.put(clazz, object);
   }
   
   public <T> boolean isLazy(Class<T> clazz) {
