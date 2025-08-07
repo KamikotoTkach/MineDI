@@ -63,8 +63,8 @@ public class EventHandlerImpl implements EventHandler {
     application.getLogger().info("Handling event: " + event);
     
     if (event instanceof ApplicationEvent applicationEvent) {
-      applicationEventListeners.getOrDefault(applicationEvent.getClass(), List.of())
-                               .forEach(boundMethodCaller -> boundMethodCaller.caller().call(event));
+      List.copyOf(applicationEventListeners.getOrDefault(applicationEvent.getClass(), List.of()))
+          .forEach(boundMethodCaller -> boundMethodCaller.caller().call(event));
       return;
     }
     
