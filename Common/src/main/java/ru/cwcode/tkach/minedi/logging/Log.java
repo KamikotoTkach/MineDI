@@ -3,6 +3,7 @@ package ru.cwcode.tkach.minedi.logging;
 import lombok.Getter;
 import ru.cwcode.tkach.minedi.logging.preprocess.LogPrefixer;
 
+import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -14,7 +15,7 @@ public class Log {
   protected final List<LogConsumer> consumers = new LinkedList<>();
   
   @Getter
-  protected final List<LogPrefixer> prefixers = new LinkedList<>();
+  protected final Deque<LogPrefixer> prefixers = new LinkedList<>();
   
   public void debug(String log) {
     this.log(LogLevel.DEBUG, log, (Object[]) null);
