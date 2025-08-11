@@ -12,7 +12,7 @@ public class ReloadableYmlConfig extends YmlConfig implements Reloadable {
   public boolean reload() {
     try {
       ReloadableYmlConfig config = diApplication.getContainer().create(this.getClass());
-      diApplication.getContainer().updateBean(this.getClass(), config);
+      diApplication.getContainer().recreate(this.getClass(), config);
       return true;
       
     } catch (Exception e) {

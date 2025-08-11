@@ -126,7 +126,7 @@ public abstract class VelocityPlatform {
   
   protected Command velocityReload() {
     return ReloadCommands.get(ymlConfigManager, ymlConfig -> {
-      diApplication.getContainer().updateBean(ymlConfig.getClass(), ymlConfig);
+      diApplication.getContainer().recreate(ymlConfig.getClass(), ymlConfig);
       diApplication.getEventHandler().handleEvent(new ConfigReloadEvent(ymlConfig));
     });
   }

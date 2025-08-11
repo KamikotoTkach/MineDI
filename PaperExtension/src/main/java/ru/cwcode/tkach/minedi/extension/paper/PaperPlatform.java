@@ -132,7 +132,7 @@ public class PaperPlatform extends Bootstrap {
   
   protected Command paperReload() {
     return ReloadCommands.get(ymlConfigManager, ymlConfig -> {
-      diApplication.getContainer().updateBean(ymlConfig.getClass(), ymlConfig);
+      diApplication.getContainer().recreate(ymlConfig.getClass(), ymlConfig);
       diApplication.getEventHandler().handleEvent(new ConfigReloadEvent(ymlConfig));
     });
   }

@@ -39,7 +39,7 @@ public class TestInjection {
   public void testStaticBeanInjectUpdate() {
     SimpleBean newBeanInstance = new SimpleBean();
     
-    application.getContainer().updateBean(SimpleBean.class, newBeanInstance);
+    application.getContainer().recreate(SimpleBean.class, newBeanInstance);
     
     assertEquals(StaticInject.getBean(), newBeanInstance);
   }
@@ -52,7 +52,7 @@ public class TestInjection {
     SomeBean2 bean2 = val.getDep();
     assertNotNull(bean2);
     
-    application.getContainer().updateBean(SomeBean2.class, new SomeBean2());
+    application.getContainer().recreate(SomeBean2.class, new SomeBean2());
     SomeBean1 someBean1 = application.get(SomeBean1.class).orElse(null);
     
     assertNotSame(bean2, someBean1.getDep(), "invalid update bean");

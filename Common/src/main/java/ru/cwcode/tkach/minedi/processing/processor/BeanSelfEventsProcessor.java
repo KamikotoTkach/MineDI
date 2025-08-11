@@ -9,13 +9,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
-public class BeanSelfEventsProcessor extends EventProcessor<BeanConstructedEvent> {
+public class BeanSelfEventsProcessor extends EventProcessor<BeanEvent> {
   public BeanSelfEventsProcessor() {
-    super(BeanConstructedEvent.class);
+    super(BeanEvent.class);
   }
   
   @Override
-  public void process(BeanConstructedEvent event, DiApplication application) {
+  public void process(BeanEvent event, DiApplication application) {
     Object bean = event.getBean();
     
     for (Method x : bean.getClass().getDeclaredMethods()) {

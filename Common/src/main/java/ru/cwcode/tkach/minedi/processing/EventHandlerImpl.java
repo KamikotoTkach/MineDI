@@ -73,14 +73,14 @@ public class EventHandlerImpl implements EventHandler {
     }
   }
   
-  private @NotNull List<BoundEventListener> getEventListeners(Class<? extends ApplicationEvent> type) {
+  public List<BoundEventListener> getEventListeners(Class<? extends ApplicationEvent> type) {
     return getApplicationEventListeners().computeIfAbsent(type, __ -> new ArrayList<>());
   }
   
   @EventListener
   public void onBeanDestroy(BeanDestroyEvent event) {
     applicationEventListeners.values().forEach(boundEventListeners -> {
-      boundEventListeners.removeIf(boundEventListener -> boundEventListener.bean().equals(event.bean()));
+      boundEventListeners.removeIf(boundEventListener -> boundEventListener.bean().equals(event.getBean()));
     });
   }
 }

@@ -7,7 +7,7 @@ public class ConfigReloadByWebEditorListener {
   public ConfigReloadByWebEditorListener(DiApplication application) {
     PaperStarter.INSTANCE.addReloadListener((previous, newConfig) -> {
       application.getLogger().info("%s updated by web editor".formatted(previous.getClass()));
-      application.getContainer().updateBean(previous.getClass(), newConfig);
+      application.getContainer().recreate(previous.getClass(), newConfig);
     });
   }
 }

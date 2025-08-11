@@ -4,8 +4,11 @@ import beans.integration.IntegratedBean;
 import lombok.Getter;
 import ru.cwcode.tkach.minedi.annotation.Component;
 
+@Getter
 @Component
-public class StaticInject {
+public class BeanWithIntegratedBean {
+  IntegratedBean integratedBean;
+  
   @Getter
-  static SimpleBean bean;
+  static IntegratedBean staticIntegratedBean;
 }

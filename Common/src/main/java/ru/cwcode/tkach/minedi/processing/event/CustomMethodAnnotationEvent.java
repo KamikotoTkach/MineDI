@@ -1,6 +1,7 @@
 package ru.cwcode.tkach.minedi.processing.event;
 
 import lombok.Getter;
+import ru.cwcode.tkach.minedi.utils.Utils;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -14,5 +15,14 @@ public class CustomMethodAnnotationEvent extends BeanEvent {
     super(bean);
     this.method = method;
     this.annotation = annotation;
+  }
+  
+  @Override
+  public String toString() {
+    return "CustomMethodAnnotationEvent{" +
+           "method=" + method.toGenericString() +
+           ", annotation=" + annotation.toString() +
+           ", bean=" + Utils.getClassNameWithHash(getBean()) +
+           '}';
   }
 }

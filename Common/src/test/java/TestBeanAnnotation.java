@@ -1,3 +1,4 @@
+import beans.BeanWithIntegratedBean;
 import beans.integration.IntegratedBean;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,5 +18,16 @@ public class TestBeanAnnotation {
   public void testIntegratedBeanPopulated() {
     IntegratedBean integratedBean = application.get(IntegratedBean.class).orElseThrow();
     Assertions.assertNotNull(integratedBean.getSimpleBean());
+  }
+  
+  @Test
+  public void testIntegratedBeanInjected() {
+    BeanWithIntegratedBean beanWithIntegratedBean = application.get(BeanWithIntegratedBean.class).orElseThrow();
+    Assertions.assertNotNull(beanWithIntegratedBean.getIntegratedBean());
+  }
+  
+  @Test
+  public void testIntegratedBeanStaticInjected() {
+    Assertions.assertNotNull(BeanWithIntegratedBean.getStaticIntegratedBean());
   }
 }

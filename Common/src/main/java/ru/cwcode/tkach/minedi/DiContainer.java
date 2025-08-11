@@ -1,6 +1,7 @@
 package ru.cwcode.tkach.minedi;
 
 import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
 import ru.cwcode.tkach.minedi.annotation.Component;
 import ru.cwcode.tkach.minedi.annotation.Lazy;
 import ru.cwcode.tkach.minedi.annotation.Required;
@@ -92,6 +93,40 @@ public class DiContainer {
     return created;
   }
   
+  public <T> T recreate(Class<T> clazz, @Nullable Object bean) {
+    BeanData beanData = beans.get(clazz);
+    
+    BeanProvider beanProvider = getBeanProvider(beanData.getScope());
+    if (beanProvider.getBeanClasses().contains(clazz)) {
+      application.getEventHandler().handleEvent(new BeanDestroyEvent(beanProvider.provide(beanData)));
+    }
+    
+    if (bean == null) {
+      bean = create(clazz);
+    } else {
+      populateBeanFields(bean);
+      application.getEventHandler().handleEvent(new BeanConstructedEvent(bean));
+    }
+    
+    Object finalBean = bean;
+    beanData.getBeanFields().forEach((field, origin) -> {
+      try {
+        field.setAccessible(true);
+        field.set(origin, finalBean);
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+    });
+    
+    if (beanProvider instanceof SingletonBeanProvider sbp) {
+      sbp.set(clazz, bean);
+    }
+    
+    injectBeanInStaticFields(clazz);
+    
+    return (T) bean;
+  }
+  
   public <T> T createOrGet(Class<T> clazz) {
     BeanData beanData = beans.get(clazz);
     
@@ -100,33 +135,6 @@ public class DiContainer {
   
   public BeanData getData(Class<?> clazz) {
     return beans.get(clazz);
-  }
-  
-  public void updateBean(Class<?> clazz, Object newObject) {
-    BeanData beanData = beans.get(clazz);
-    if (beanData == null) return;
-    
-    beanData.getBeanFields().forEach((field, origin) -> {
-      try {
-        field.setAccessible(true);
-        field.set(origin, newObject);
-      } catch (IllegalAccessException e) {
-        e.printStackTrace();
-      }
-    });
-    
-    BeanProvider beanProvider = getBeanProvider(beanData.getScope());
-    if (beanProvider.getBeanClasses().contains(clazz)) {
-      application.getEventHandler().handleEvent(new BeanDestroyEvent(beanProvider.provide(beanData)));
-    }
-    
-    if (beanProvider instanceof SingletonBeanProvider sbp) {
-      sbp.set(clazz, newObject);
-    }
-    
-    application.getEventHandler().handleEvent(new BeanConstructedEvent(newObject));
-    
-    injectBeanInStaticFields(clazz);
   }
   
   public BeanProvider getBeanProvider(String scope) {

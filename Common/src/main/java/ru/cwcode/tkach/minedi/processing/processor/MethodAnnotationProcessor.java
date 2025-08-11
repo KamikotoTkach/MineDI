@@ -48,6 +48,7 @@ public class MethodAnnotationProcessor extends EventProcessor<BeanConstructedEve
     String condition = beanAnnotation.condition();
     if (condition == null || application.getConditionParser().parse(condition)) {
       
+      x.setAccessible(true);
       Object result = x.invoke(bean);
       
       if (result != null) {
