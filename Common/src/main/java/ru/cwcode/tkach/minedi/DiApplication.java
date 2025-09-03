@@ -57,6 +57,14 @@ public class DiApplication {
     container.registerSingleton(bean, as);
   }
   
+  /**
+   * be careful
+   */
+  @Deprecated(forRemoval = true)
+  public void register(Optional<?> bean) {
+    throw new IllegalStateException("Be careful.");
+  }
+  
   public void register(Object bean) {
     container.registerSingleton(bean, bean.getClass());
   }
