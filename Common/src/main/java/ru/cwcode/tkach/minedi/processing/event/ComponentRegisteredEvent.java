@@ -1,6 +1,6 @@
 package ru.cwcode.tkach.minedi.processing.event;
 
-public record ComponentPreRegisteredEvent(Class<?> component) implements Event {
+public record ComponentRegisteredEvent(Class<?> component) implements Event {
   @Override
   public String toString() {
     return "ComponentPreRegisteredEvent{" +
