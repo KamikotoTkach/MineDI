@@ -7,6 +7,7 @@ import ru.cwcode.tkach.minedi.DiContainer;
 import ru.cwcode.tkach.minedi.annotation.Required;
 import ru.cwcode.tkach.minedi.annotation.Scope;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
+import ru.cwcode.tkach.minedi.utils.Utils;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -58,6 +59,8 @@ public class BeanData {
       
       fieldDependencies.addAll(constructorDependencies);
     }
+    
+    diContainer.getApplication().getLogger().info("Dependencies of {} is ", clazz, Utils.toString(fieldDependencies));
     
     dependencies = new ArrayList<>(fieldDependencies);
   }

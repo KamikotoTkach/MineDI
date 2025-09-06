@@ -65,14 +65,13 @@ public class DiContainer {
   }
   
   public void registerSingleton(Object bean, Class<?> as) {
-    BeanData beanData;
-    
-    if(!beans.containsKey(as)) {
-      beanData = new BeanData(as, this);
+    if (!beans.containsKey(as)) {
+      BeanData beanData = new BeanData(as, this);
       this.beans.put(as, beanData);
       
       beanData.searchForDependencies();
     }
+    
     
     singletonBeanProvider().set(as, bean);
     injectBeanInStaticFields(as);
@@ -245,7 +244,7 @@ public class DiContainer {
   }
   
   private void injectBeanInStaticFields(Class<?> clazz) {
-    application.getLogger().info("Injecting " + clazz + " in static fields");
+    application.getLogger().info("Injecting {} in static fields", clazz);
     
     for (Field field : staticFields.getOrDefault(clazz, List.of())) {
       
@@ -254,7 +253,11 @@ public class DiContainer {
         
         if (Modifier.isFinal(field.getModifiers())) continue;
         
-        field.set(null, get(clazz).orElseThrow());
+        Object toInject = get(clazz).orElseThrow();
+        
+        application.getLogger().info("Injecting {} to static field {} of {}", toInject.getClass(), field.getName(), field.getDeclaringClass());
+        
+        field.set(null, toInject);
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
