@@ -201,6 +201,15 @@ public class DiContainer {
     }
   }
   
+  public void registerBean(Class<?> clazz, Object bean) {
+    BeanData value = new BeanData(clazz, this);
+    beans.put(clazz, value);
+    
+    singletonBeanProvider().set(clazz, bean);
+    
+    application.getEventHandler().handleEvent(new ComponentRegisteredEvent(clazz));
+  }
+  
   public boolean validateBean(Class<?> clazz) {
     return clazz.getDeclaredConstructors().length == 1;
   }
@@ -284,7 +293,7 @@ public class DiContainer {
     
     T instance = application.getBeanConstructors().construct(clazz, data);
     
-    if (data.getScope().equals(BeanScope.SINGLETON)) {
+    if (data.getScope().equals(BeanScope.SINGLETON)) { //todo catch by events
       ((SingletonBeanProvider) getBeanProvider(BeanScope.SINGLETON)).set(clazz, instance);
     }
     

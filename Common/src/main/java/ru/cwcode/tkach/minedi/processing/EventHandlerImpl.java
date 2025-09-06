@@ -9,6 +9,7 @@ import ru.cwcode.tkach.minedi.processing.event.ApplicationEvent;
 import ru.cwcode.tkach.minedi.processing.event.BeanDestroyEvent;
 import ru.cwcode.tkach.minedi.processing.event.Event;
 import ru.cwcode.tkach.minedi.processing.processor.BeanSelfEventsProcessor;
+import ru.cwcode.tkach.minedi.processing.processor.ConfigurationProcessor;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 import ru.cwcode.tkach.minedi.processing.processor.MethodAnnotationProcessor;
 
@@ -27,6 +28,7 @@ public class EventHandlerImpl implements EventHandler {
     
     processors.add(new MethodAnnotationProcessor(this));
     processors.add(new BeanSelfEventsProcessor());
+    processors.add(new ConfigurationProcessor());
     
     registerApplicationEventListener(this);
   }
