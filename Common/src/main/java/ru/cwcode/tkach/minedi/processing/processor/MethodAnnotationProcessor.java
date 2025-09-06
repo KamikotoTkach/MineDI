@@ -53,8 +53,7 @@ public class MethodAnnotationProcessor extends EventProcessor<BeanConstructedEve
       
       if (result != null) {
         Class<?> as = beanAnnotation.as() == Object.class ? x.getReturnType() : beanAnnotation.as();
-        application.getContainer().registerBean(as, result);
-        application.getContainer().populateBeanFields(result);
+        application.getContainer().registerSingletonBean(as, result);
       }
     }
   }

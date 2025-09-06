@@ -191,7 +191,7 @@ public class DiContainer {
   public void registerBean(Class<?> clazz, boolean ignoreComponentRequiredAnnotation) {
     if (validateBean(clazz)) {
       BeanData value = new BeanData(clazz, this);
-      if (ignoreComponentRequiredAnnotation || !value.isAnnotationPresent(Component.class)) {
+      if (!ignoreComponentRequiredAnnotation && !value.isAnnotationPresent(Component.class)) {
         application.getLogger().info("Class " + clazz.getSimpleName() + " ignored");
         return;
       }
@@ -201,13 +201,16 @@ public class DiContainer {
     }
   }
   
-  public void registerBean(Class<?> clazz, Object bean) {
+  public void registerSingletonBean(Class<?> clazz, Object instance) {
     BeanData value = new BeanData(clazz, this);
+    
     beans.put(clazz, value);
-    
-    singletonBeanProvider().set(clazz, bean);
-    
+    singletonBeanProvider().set(clazz, instance);
+
     application.getEventHandler().handleEvent(new ComponentRegisteredEvent(clazz));
+    
+    populateBeanFields(instance);
+    application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
   }
   
   public boolean validateBean(Class<?> clazz) {
@@ -234,7 +237,7 @@ public class DiContainer {
     scanForStaticFields();
   }
   
-  private SingletonBeanProvider singletonBeanProvider() {
+  public SingletonBeanProvider singletonBeanProvider() {
     return (SingletonBeanProvider) beanProviders.get(BeanScope.SINGLETON);
   }
   
@@ -285,7 +288,10 @@ public class DiContainer {
       }
     });
     
-    singletonBeanProvider.getBeanClasses().forEach(this::populateBeanFields);
+    singletonBeanProvider.getBeanClasses()
+                         .stream()
+                         .map(x->get(x).orElseThrow())
+                         .forEach(this::populateBeanFields);
   }
   
   private <T> T create0(Class<T> clazz) {
