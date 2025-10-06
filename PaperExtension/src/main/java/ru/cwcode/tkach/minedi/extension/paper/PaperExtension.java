@@ -9,10 +9,7 @@ import ru.cwcode.tkach.minedi.extension.paper.condition.HasPluginCondition;
 import ru.cwcode.tkach.minedi.extension.paper.listener.ConfigReloadByWebEditorListener;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAdapter;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAnnotationProcessor;
-import ru.cwcode.tkach.minedi.extension.paper.processor.AsyncAnnotationProcessor;
-import ru.cwcode.tkach.minedi.extension.paper.processor.BukkitListenerProcessor;
-import ru.cwcode.tkach.minedi.extension.paper.processor.PacketListenerAnnotationProcessor;
-import ru.cwcode.tkach.minedi.extension.paper.processor.RepeatableAnnotationProcessor;
+import ru.cwcode.tkach.minedi.extension.paper.processor.*;
 import ru.cwcode.tkach.minedi.processing.event.Event;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 
@@ -40,6 +37,10 @@ public class PaperExtension implements Extension {
     
     if (Bukkit.getPluginManager().getPlugin("IPMC") != null) {
       processors.add(new PacketListenerAnnotationProcessor(this));
+    }
+    
+    if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+      processors.add(new ProtocolLibAnnotationProcessor(this));
     }
   }
   

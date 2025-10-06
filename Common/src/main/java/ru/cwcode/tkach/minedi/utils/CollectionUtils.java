@@ -11,4 +11,15 @@ public class CollectionUtils {
                   .filter(type::isInstance)
                   .findFirst();
   }
+  
+  public static <T> String toString(Iterable<T> values, String prefix, String suffix, boolean removeLastSuffix) {
+    
+    StringBuilder sb = new StringBuilder();
+    for (T value : values) {
+      sb.append(prefix).append(value).append(suffix);
+    }
+    
+    if (removeLastSuffix && sb.length() >= suffix.length()) sb.setLength(sb.length() - suffix.length());
+    return sb.toString();
+  }
 }
