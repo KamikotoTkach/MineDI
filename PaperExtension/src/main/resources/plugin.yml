@@ -1,5 +1,7 @@
 name: MineDI
 main: ru.cwcode.tkach.minedi.extension.paper.Main
+libraries:
+  - "cglib:cglib-nodep:3.3.0"
 version: '${project.version}'
 api-version: '1.16'
 depend: ["CWCommands", "CWConfig"]

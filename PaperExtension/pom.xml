@@ -163,8 +163,9 @@
         </dependency>
         <dependency>
             <groupId>cglib</groupId>
-            <artifactId>cglib</artifactId>
+            <artifactId>cglib-nodep</artifactId>
             <version>3.3.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
