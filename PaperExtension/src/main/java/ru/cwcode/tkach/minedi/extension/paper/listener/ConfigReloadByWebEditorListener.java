@@ -6,8 +6,10 @@ import ru.cwcode.tkach.minedi.DiApplication;
 public class ConfigReloadByWebEditorListener {
   public ConfigReloadByWebEditorListener(DiApplication application) {
     PaperStarter.INSTANCE.addReloadListener((previous, newConfig) -> {
-      application.getLogger().info("%s updated by web editor".formatted(previous.getClass()));
-      application.getContainer().recreate(previous.getClass(), newConfig);
+      application.get(previous.getClass()).ifPresent(ymlConfig -> {
+        application.getLogger().info("%s updated by web editor".formatted(previous.getClass()));
+        application.getContainer().recreate(previous.getClass(), newConfig);
+      });
     });
   }
 }
