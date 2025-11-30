@@ -6,6 +6,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.extension.Extension;
 import ru.cwcode.tkach.minedi.extension.paper.condition.HasPluginCondition;
+import ru.cwcode.tkach.minedi.extension.paper.condition.VersionCondition;
 import ru.cwcode.tkach.minedi.extension.paper.listener.ConfigReloadByWebEditorListener;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAdapter;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAnnotationProcessor;
@@ -51,6 +52,7 @@ public class PaperExtension implements Extension {
   @Override
   public void onRegister(DiApplication application) {
     application.getConditionParser().register(new HasPluginCondition());
+    application.getConditionParser().register(new VersionCondition());
     
     processors.forEach(processor -> application.getEventHandler().registerProcessor(processor));
   }
