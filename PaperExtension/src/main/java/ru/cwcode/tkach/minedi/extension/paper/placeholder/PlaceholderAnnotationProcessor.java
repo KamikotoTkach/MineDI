@@ -14,10 +14,15 @@ public class PlaceholderAnnotationProcessor extends EventProcessor<CustomMethodA
   
   @Override
   public void process(CustomMethodAnnotationEvent event, DiApplication application) {
-    if (!event.getAnnotation().annotationType().equals(Placeholder.class)) return;
-    Placeholder annotation = (Placeholder) event.getAnnotation();
+    String name;
+    if (event.getAnnotation().annotationType().equals(Placeholder.class)) {
+      Placeholder annotation = (Placeholder) event.getAnnotation();
+      name = annotation.name();
+    } else if (event.getAnnotation().annotationType().equals(PapiPlaceholder.class)) {
+      PapiPlaceholder annotation = (PapiPlaceholder) event.getAnnotation();
+      name = annotation.name();
+    } else return;
     
-    String name = annotation.name();
     placeholderAdapter.register(event.getBean(), event.getMethod(), name);
   }
 }
