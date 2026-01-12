@@ -93,6 +93,7 @@ public class DiContainer {
   
   public <T> T recreate(Class<T> clazz, @Nullable Object bean) {
     BeanData beanData = beans.get(clazz);
+    if (beanData == null) return null;
     
     BeanProvider beanProvider = getBeanProvider(beanData.getScope());
     if (beanProvider.getBeanClasses().contains(clazz)) {
