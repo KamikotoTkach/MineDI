@@ -78,6 +78,16 @@ public class DiContainer {
     application.getEventHandler().handleEvent(new BeanConstructedEvent(bean));
   }
   
+  public void registerReference(Object bean, Class<?> as) {
+    if (!beans.containsKey(as)) {
+      BeanData beanData = new BeanData(as, this);
+      this.beans.put(as, beanData);
+    }
+    
+    singletonBeanProvider().set(as, bean);
+    injectBeanInStaticFields(as);
+  }
+  
   public <T> T create(Class<T> clazz) {
     boolean added = creatingStack.get().add(clazz);
     if (!added) {

@@ -14,6 +14,7 @@ import ru.cwcode.tkach.minedi.scanner.JarClassScanner;
 import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 @Getter
@@ -57,16 +58,21 @@ public class DiApplication {
     container.registerSingleton(bean, as);
   }
   
-  /**
-   * be careful
-   */
-  @Deprecated(forRemoval = true)
+  public <T> void registerReference(T bean, Class<T> as) {
+    container.registerReference(bean, as);
+  }
+  
+  @Deprecated
   public void register(Optional<?> bean) {
-    throw new IllegalStateException("Be careful.");
+    register(bean.orElseThrow());
   }
   
   public void register(Object bean) {
     container.registerSingleton(bean, bean.getClass());
+  }
+  
+  public void registerReference(Object bean) {
+    container.registerReference(bean, bean.getClass());
   }
   
   public void start() {
