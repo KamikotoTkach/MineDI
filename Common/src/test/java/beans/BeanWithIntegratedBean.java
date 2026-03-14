@@ -11,4 +11,6 @@ public class BeanWithIntegratedBean {
   
   @Getter
   static IntegratedBean staticIntegratedBean;
+  @Getter
+  static IntegratedBean staticExternalBean;
 }
