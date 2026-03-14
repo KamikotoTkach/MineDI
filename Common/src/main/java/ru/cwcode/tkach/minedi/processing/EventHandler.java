@@ -6,6 +6,7 @@ import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 import java.lang.reflect.Method;
 
 public interface EventHandler {
+  void addPostBeansConstructedTask(Runnable task);
   void registerProcessor(EventProcessor<? extends Event> processor);
   void registerApplicationEventListener(Object bean);
   void registerApplicationEventListener(Object bean, Method method);

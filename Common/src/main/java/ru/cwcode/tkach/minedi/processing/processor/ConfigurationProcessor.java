@@ -15,7 +15,9 @@ public class ConfigurationProcessor extends EventProcessor<ComponentRegisteredEv
   public void process(ComponentRegisteredEvent event, DiApplication application) {
     for (Method declaredMethod : event.component().getDeclaredMethods()) {
       if (declaredMethod.isAnnotationPresent(Bean.class)) {
-        application.get(event.component());
+        application.getEventHandler().addPostBeansConstructedTask(() -> {
+          application.get(event.component());
+        });
         return;
       }
     }

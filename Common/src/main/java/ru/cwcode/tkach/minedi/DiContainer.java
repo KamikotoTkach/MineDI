@@ -9,6 +9,7 @@ import ru.cwcode.tkach.minedi.exception.CircularDependencyException;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
 import ru.cwcode.tkach.minedi.processing.event.BeanDestroyEvent;
 import ru.cwcode.tkach.minedi.processing.event.ComponentRegisteredEvent;
+import ru.cwcode.tkach.minedi.processing.event.ComponentsRegisteredEvent;
 import ru.cwcode.tkach.minedi.provider.BeanProvider;
 import ru.cwcode.tkach.minedi.provider.SingletonBeanProvider;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
@@ -222,14 +223,13 @@ public class DiContainer {
   }
   
   public boolean validateBean(Class<?> clazz) {
-    return clazz.getDeclaredConstructors().length == 1;
+    return clazz.getDeclaredConstructors().length == 1 && !beans.containsKey(clazz);
   }
   
   protected void registerBeans() {
     application.getLogger().info("Registering components");
     classes.forEach(this::registerComponent);
-    
-    application.getLogger().info("Searching beans dependencies");
+    application.getEventHandler().handleEvent(new ComponentsRegisteredEvent());
     
     beans.forEach((clazz, data) -> injectBeanInStaticFields(clazz));
     
