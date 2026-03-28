@@ -1,12 +1,12 @@
-package ru.cwcode.tkach.minedi.annotation;
+package ru.cwcode.tkach.minedi.extension.paper.placeholder;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@BaseAnnotation
-@Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Required {
+@Target(ElementType.METHOD)
+public @interface PapiPlaceholder {
+  String name() default "";
 }

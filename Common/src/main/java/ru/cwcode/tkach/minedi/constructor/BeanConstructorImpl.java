@@ -13,12 +13,6 @@ import java.util.List;
 public class BeanConstructorImpl implements BeanConstructor {
   @Override
   public <T> T construct(Class<T> clazz, BeanData data, DiApplication application) {
-    
-    List<?> dependencies = data.getDependencies().stream()
-                               .filter(BeanDependency::isStartupRequired)
-                               .map(x -> application.getContainer().createOrGet(x.getClazz()))
-                               .toList();
-    
     Constructor<?> constructor = clazz.getDeclaredConstructors()[0];
     constructor.setAccessible(true);
     
@@ -27,8 +21,12 @@ public class BeanConstructorImpl implements BeanConstructor {
     
     for (int i = 0; i < parameterTypes.length; i++) {
       Class<?> parameterType = parameterTypes[i];
-      parameters[i] = CollectionUtils.findObjectWithType(dependencies, parameterType)
-                                     .orElseThrow(() -> new RuntimeException("No dependency found for '%s' while constructing bean '%s'".formatted(parameterType, clazz.getName())));
+      Object dependency = application.getContainer().createOrGet(parameterType);
+      if (dependency == null) {
+        throw new RuntimeException("No dependency found for '%s' while constructing bean '%s'".formatted(parameterType, clazz.getName()));
+      }
+      
+      parameters[i] = dependency;
     }
     
     try {

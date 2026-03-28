@@ -4,12 +4,12 @@ import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 import ru.cwcode.tkach.minedi.annotation.Component;
 import ru.cwcode.tkach.minedi.annotation.Lazy;
-import ru.cwcode.tkach.minedi.annotation.Required;
 import ru.cwcode.tkach.minedi.data.BeanData;
 import ru.cwcode.tkach.minedi.exception.CircularDependencyException;
 import ru.cwcode.tkach.minedi.processing.event.BeanConstructedEvent;
 import ru.cwcode.tkach.minedi.processing.event.BeanDestroyEvent;
 import ru.cwcode.tkach.minedi.processing.event.ComponentRegisteredEvent;
+import ru.cwcode.tkach.minedi.processing.event.ComponentsRegisteredEvent;
 import ru.cwcode.tkach.minedi.provider.BeanProvider;
 import ru.cwcode.tkach.minedi.provider.SingletonBeanProvider;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
@@ -68,14 +68,22 @@ public class DiContainer {
     if (!beans.containsKey(as)) {
       BeanData beanData = new BeanData(as, this);
       this.beans.put(as, beanData);
-      
-      beanData.searchForDependencies();
     }
     
     singletonBeanProvider().set(as, bean);
     injectBeanInStaticFields(as);
     
     application.getEventHandler().handleEvent(new BeanConstructedEvent(bean));
+  }
+  
+  public void registerReference(Object bean, Class<?> as) {
+    if (!beans.containsKey(as)) {
+      BeanData beanData = new BeanData(as, this);
+      this.beans.put(as, beanData);
+    }
+    
+    singletonBeanProvider().set(as, bean);
+    injectBeanInStaticFields(as);
   }
   
   public <T> T create(Class<T> clazz) {
@@ -93,6 +101,7 @@ public class DiContainer {
   
   public <T> T recreate(Class<T> clazz, @Nullable Object bean) {
     BeanData beanData = beans.get(clazz);
+    if (beanData == null) return null;
     
     BeanProvider beanProvider = getBeanProvider(beanData.getScope());
     if (beanProvider.getBeanClasses().contains(clazz)) {
@@ -161,7 +170,7 @@ public class DiContainer {
   public void populateBeanFields(Object instance) {
     ReflectionUtils.getFields(instance.getClass()).stream()
                    .filter(x -> isBean(x.getType()))
-                   .sorted(Comparator.comparingInt(x -> x.isAnnotationPresent(Required.class) ? 0 : 1)) //first required
+                   .sorted(Comparator.comparingInt(x -> Modifier.isFinal(x.getModifiers()) ? 0 : 1)) //first final
                    .forEach(field -> {
                      BeanData beanData = beans.get(instance.getClass());
                      if (beanData != null && beanData.getScope().equals(BeanScope.SINGLETON) && isBeanPopulated(instance)) {
@@ -214,15 +223,13 @@ public class DiContainer {
   }
   
   public boolean validateBean(Class<?> clazz) {
-    return clazz.getDeclaredConstructors().length == 1;
+    return clazz.getDeclaredConstructors().length == 1 && !beans.containsKey(clazz);
   }
   
   protected void registerBeans() {
     application.getLogger().info("Registering components");
     classes.forEach(this::registerComponent);
-    
-    application.getLogger().info("Searching beans dependencies");
-    beans.values().forEach(BeanData::searchForDependencies);
+    application.getEventHandler().handleEvent(new ComponentsRegisteredEvent());
     
     beans.forEach((clazz, data) -> injectBeanInStaticFields(clazz));
     
@@ -312,7 +319,7 @@ public class DiContainer {
   
   private boolean isBeanPopulated(Object object) {
     return ReflectionUtils.getFields(object.getClass()).stream()
-                          .filter(x -> isBean(x.getType()) && x.isAnnotationPresent(Required.class))
+                          .filter(x -> isBean(x.getType()))
                           .allMatch(field -> {
                             try {
                               field.setAccessible(true);

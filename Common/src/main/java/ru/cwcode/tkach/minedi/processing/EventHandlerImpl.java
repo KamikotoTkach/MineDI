@@ -1,17 +1,13 @@
 package ru.cwcode.tkach.minedi.processing;
 
 import lombok.Getter;
-import org.jetbrains.annotations.NotNull;
 import revxrsal.asm.MethodCaller;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.annotation.EventListener;
 import ru.cwcode.tkach.minedi.processing.event.ApplicationEvent;
 import ru.cwcode.tkach.minedi.processing.event.BeanDestroyEvent;
 import ru.cwcode.tkach.minedi.processing.event.Event;
-import ru.cwcode.tkach.minedi.processing.processor.BeanSelfEventsProcessor;
-import ru.cwcode.tkach.minedi.processing.processor.ConfigurationProcessor;
-import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
-import ru.cwcode.tkach.minedi.processing.processor.MethodAnnotationProcessor;
+import ru.cwcode.tkach.minedi.processing.processor.*;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -22,6 +18,7 @@ public class EventHandlerImpl implements EventHandler {
   DiApplication application;
   @Getter
   Map<Class<? extends ApplicationEvent>, List<BoundEventListener>> applicationEventListeners = new HashMap<>();
+  PostComponentRegisterTasksProcessor postComponentRegisterTasksProcessor;
   
   public EventHandlerImpl(DiApplication application) {
     this.application = application;
@@ -29,8 +26,14 @@ public class EventHandlerImpl implements EventHandler {
     processors.add(new MethodAnnotationProcessor(this));
     processors.add(new BeanSelfEventsProcessor());
     processors.add(new ConfigurationProcessor());
+    processors.add(postComponentRegisterTasksProcessor = new PostComponentRegisterTasksProcessor());
     
     registerApplicationEventListener(this);
+  }
+  
+  @Override
+  public void addPostComponentRegisteredTask(Runnable task) {
+    postComponentRegisterTasksProcessor.getTasks().add(task);
   }
   
   @Override

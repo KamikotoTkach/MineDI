@@ -10,4 +10,9 @@ public class TestConfiguration {
   public IntegratedBean integratedBean() {
     return new IntegratedBean();
   }
+  
+  @Bean
+  public ExternalBean externalBean() {
+    return new ExternalBean();
+  }
 }

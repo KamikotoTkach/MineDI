@@ -1,4 +1,5 @@
 import beans.BeanWithIntegratedBean;
+import beans.ExternalBean;
 import beans.integration.IntegratedBean;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,7 +28,24 @@ public class TestBeanAnnotation {
   }
   
   @Test
+  public void testExternalBeanRegistered() {
+    ExternalBean externalBean = application.get(ExternalBean.class).orElseThrow();
+    Assertions.assertNotNull(externalBean);
+  }
+  
+  @Test
+  public void testExternalBeanPopulated() {
+    ExternalBean externalBean = application.get(ExternalBean.class).orElseThrow();
+    Assertions.assertNotNull(externalBean.getDependency());
+  }
+  
+  @Test
   public void testIntegratedBeanStaticInjected() {
     Assertions.assertNotNull(BeanWithIntegratedBean.getStaticIntegratedBean());
+  }
+  
+  @Test
+  public void testExternalBeanStaticInjected() {
+    Assertions.assertNotNull(BeanWithIntegratedBean.getStaticExternalBean());
   }
 }
