@@ -1,5 +1,6 @@
 package ru.cwcode.tkach.minedi.extension.paper.placeholder;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
@@ -58,9 +59,16 @@ public class PlaceholderAdapter {
   
   protected String onRequest(String identifier, @Nullable OfflinePlayer player, String params) {
     try {
+      int maxAttempts = 10;
+      String previous;
+      do {
+        previous = params;
+        params = PlaceholderAPI.setBracketPlaceholders(player, params);
+      } while (!params.equals(previous) && maxAttempts-- > 0);
+      
+      String[] strParameters = params.split("_");
+      
       for (MethodData methodData : placeholders.get(identifier)) {
-        String[] strParameters = params.split("_");
-        
         Object[] adapt = adapt(player, methodData.parameters(), strParameters);
         if (adapt == null) continue;
         
@@ -98,7 +106,7 @@ public class PlaceholderAdapter {
       
       if (strParameters.length == i - hasPlayer) break;
       
-      String strParameter = strParameters[i-hasPlayer];
+      String strParameter = strParameters[i - hasPlayer];
       
       Object parsed = StringToObjectParser.parse(strParameter, clazz);
       if (parsed == null) {
