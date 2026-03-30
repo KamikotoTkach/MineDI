@@ -1,5 +1,6 @@
 package ru.cwcode.tkach.minedi.extension.paper.placeholder;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
@@ -58,9 +59,10 @@ public class PlaceholderAdapter {
   
   protected String onRequest(String identifier, @Nullable OfflinePlayer player, String params) {
     try {
+      params = parseNestedBrackets(player, params);
+      String[] strParameters = params.split("_");
+      
       for (MethodData methodData : placeholders.get(identifier)) {
-        String[] strParameters = params.split("_");
-        
         Object[] adapt = adapt(player, methodData.parameters(), strParameters);
         if (adapt == null) continue;
         
@@ -98,7 +100,7 @@ public class PlaceholderAdapter {
       
       if (strParameters.length == i - hasPlayer) break;
       
-      String strParameter = strParameters[i-hasPlayer];
+      String strParameter = strParameters[i - hasPlayer];
       
       Object parsed = StringToObjectParser.parse(strParameter, clazz);
       if (parsed == null) {
@@ -111,4 +113,29 @@ public class PlaceholderAdapter {
     return adapted;
   }
   
+  private String parseNestedBrackets(OfflinePlayer player, String params) {
+    if (params == null || params.indexOf('{') == -1 || params.lastIndexOf('}') == -1) return params;
+    
+    int maxAttempts = 20;
+    
+    while (maxAttempts-- > 0) {
+      int closeIndex = params.indexOf('}');
+      if (closeIndex == -1) break;
+      
+      int openIndex = params.lastIndexOf('{', closeIndex);
+      if (openIndex == -1) break;
+      
+      String innerPlaceholder = params.substring(openIndex, closeIndex + 1);
+      String parsed = PlaceholderAPI.setBracketPlaceholders(player, innerPlaceholder);
+      
+      if (parsed.equals(innerPlaceholder)) {
+        String innerContent = params.substring(openIndex + 1, closeIndex);
+        params = params.substring(0, openIndex) + '\u0001' + innerContent + '\u0002' + params.substring(closeIndex + 1);
+      } else {
+        params = params.substring(0, openIndex) + parsed + params.substring(closeIndex + 1);
+      }
+    }
+    
+    return params.replace('\u0001', '{').replace('\u0002', '}');
+  }
 }
