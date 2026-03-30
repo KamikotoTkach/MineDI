@@ -32,9 +32,16 @@ public class Main {
     logger.info("MineDI initializing");
     
     for (VelocityPlatform plugin : plugins) {
-      logger.info(plugin.getPluginContainer().getDescription().getName().get() + "  initializing");
-      
-      plugin.onProxyInitialization();
+      String pluginName = plugin.getClass().getSimpleName();
+      try {
+        pluginName = plugin.getPluginContainer().getDescription().getName().get();
+        logger.info(pluginName + "  initializing");
+        
+        plugin.onProxyInitialization();
+        
+      } catch (Throwable e) {
+        logger.warning("Cannot pass ProxyInitializeEvent to " + pluginName);
+      }
     }
   }
 }
