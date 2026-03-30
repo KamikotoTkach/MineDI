@@ -220,6 +220,7 @@ public class DiContainer {
     
     populateBeanFields(instance);
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
+    injectBeanInStaticFields(clazz);
   }
   
   public boolean validateBean(Class<?> clazz) {
