@@ -89,6 +89,7 @@ public abstract class VelocityPlatform {
     diApplication.register(getPluginContainer(), PluginContainer.class);
     diApplication.register(getServer(), ProxyServer.class);
     diApplication.register(this);
+    diApplication.register(logger, Log.class);
     
     diApplication.getContainer().populateBeanFields(this);
     
