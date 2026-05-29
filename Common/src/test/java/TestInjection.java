@@ -66,6 +66,8 @@ public class TestInjection {
     
     assertNotNull(someBean1.getDep());
     assertNotNull(someBean1.getOptionalDep());
+    assertNotNull(someBean1.getCircularDep());
+    assertEquals(someBean1.getCircularDep().getSomeBean1(), someBean1);
   }
   
   @Test

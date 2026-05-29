@@ -9,6 +9,7 @@ public class SomeBean1 {
   final SomeBean2 dep;
   
   SomeBean3 optionalDep;
+  SomeBean4 circularDep;
   
   public SomeBean1(SomeBean2 dep) {
     this.dep = dep;
