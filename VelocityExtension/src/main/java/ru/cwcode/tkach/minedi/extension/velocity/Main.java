@@ -1,6 +1,7 @@
 package ru.cwcode.tkach.minedi.extension.velocity;
 
 import com.google.inject.Inject;
+import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Dependency;
@@ -27,7 +28,7 @@ public class Main {
   @Inject
   private Logger logger;
   
-  @Subscribe
+  @Subscribe(order = PostOrder.LATE)
   void onProxyInitialization(ProxyInitializeEvent event) {
     logger.info("MineDI initializing");
     
@@ -41,6 +42,7 @@ public class Main {
         
       } catch (Throwable e) {
         logger.warning("Cannot pass ProxyInitializeEvent to " + pluginName);
+        e.printStackTrace();
       }
     }
   }
