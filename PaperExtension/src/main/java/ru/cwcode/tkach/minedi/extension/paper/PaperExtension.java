@@ -30,6 +30,7 @@ public class PaperExtension implements Extension {
     processors = new LinkedList<>();
     processors.add(new AsyncAnnotationProcessor());
     processors.add(new BukkitListenerProcessor(this));
+    processors.add(new BukkitServiceProcessor(this));
     processors.add(new RepeatableAnnotationProcessor(this));
     
     if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
