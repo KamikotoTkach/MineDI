@@ -2,6 +2,7 @@ package ru.cwcode.tkach.minedi.extension.paper.processor;
 
 import net.sf.cglib.proxy.*;
 import org.bukkit.Bukkit;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -41,6 +42,11 @@ public class AsyncAnnotationProcessor extends EventProcessor<BeanCreatedEvent> {
                                     .collect(Collectors.toSet());
     
     if (asyncMethods.isEmpty() && syncMethods.isEmpty()) return;
+    if (event.getBean() instanceof Listener) {
+      throw new IllegalStateException("Cannot proxy " + event.getBean().getClass().getName() +
+                                      " because Bukkit listener registration scans declared methods of listener class. " +
+                                      "Move @Async/@Sync methods to a separate @Service and call it from the listener.");
+    }
     
     Enhancer enhancer = wrapMethods(event.getBean(), asyncMethods, syncMethods, application);
     
