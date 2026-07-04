@@ -25,8 +25,9 @@ public class DiContainer {
   final ThreadLocal<LinkedHashSet<Class<?>>> creatingStack = ThreadLocal.withInitial(LinkedHashSet::new);
   @Getter
   final DiApplication application;
-  
+  @Getter
   ClassScanner scanner;
+  
   Set<Class<?>> classes;
   Map<Class<?>, BeanData> beans = new ConcurrentHashMap<>();
   Map<String, BeanProvider> beanProviders = new ConcurrentHashMap<>();
@@ -253,11 +254,15 @@ public class DiContainer {
     application.getLogger().info("Scanning for static fields");
     
     for (Class<?> clazz : classes) {
-      for (Field declaredField : clazz.getDeclaredFields()) {
-        if (Modifier.isStatic(declaredField.getModifiers())) {
-          staticFields.computeIfAbsent(declaredField.getType(), (e) -> new ArrayList<>())
-                      .add(declaredField);
+      try {
+        for (Field declaredField : clazz.getDeclaredFields()) {
+          if (Modifier.isStatic(declaredField.getModifiers())) {
+            staticFields.computeIfAbsent(declaredField.getType(), (e) -> new ArrayList<>())
+                        .add(declaredField);
+          }
         }
+      } catch (LinkageError | TypeNotPresentException e) {
+        application.getLogger().warn("Static fields scan skipped for {}: {}", clazz.getName(), e.getMessage());
       }
     }
   }

@@ -52,7 +52,8 @@ public class PaperPlatform extends Bootstrap {
     
     logger.debug("PreLoad");
     
-    diApplication = new DiApplication(logger, getFile(), getClass().getPackageName());
+    diApplication = new DiApplication(logger, getFile(), getClass().getPackageName(), getClassLoader());
+    configureDiApplication(diApplication);
     diApplication.load();
     
     diApplication.registerExtension(paperExtension = new PaperExtension(this));
@@ -86,7 +87,11 @@ public class PaperPlatform extends Bootstrap {
   }
   
   protected void initialize() {
-  
+   
+  }
+
+  protected void configureDiApplication(DiApplication diApplication) {
+
   }
   
   @Override

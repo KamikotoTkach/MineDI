@@ -67,7 +67,8 @@ public abstract class VelocityPlatform {
   void onProxyInitialization() {
     logger = new VelocityLogger(this);
     
-    diApplication = new DiApplication(logger, getPluginFile(), getClass().getPackageName());
+    diApplication = new DiApplication(logger, getPluginFile(), getClass().getPackageName(), getClass().getClassLoader());
+    configureDiApplication(diApplication);
     
     diApplication.registerExtension(velocityExtension = new VelocityExtension(this));
     
@@ -122,7 +123,11 @@ public abstract class VelocityPlatform {
   }
   
   protected void onPrePluginLoad() {
-  
+   
+  }
+
+  protected void configureDiApplication(DiApplication diApplication) {
+
   }
   
   protected Command velocityReload() {

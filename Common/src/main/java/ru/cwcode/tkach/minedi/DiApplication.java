@@ -16,6 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 @Getter
 public class DiApplication {
@@ -30,10 +31,21 @@ public class DiApplication {
   
   public DiApplication(Log logger, File jarfile, String packageName) {
     this(logger, JarClassScanner.builder()
+                                .jar(jarfile)
+                                .packageName(packageName)
+                                .build());
+    
+    excludeFromAutoScan(className -> className.endsWith("Integration"));
+  }
+
+  public DiApplication(Log logger, File jarfile, String packageName, ClassLoader classLoader) {
+    this(logger, JarClassScanner.builder()
                         .jar(jarfile)
                         .packageName(packageName)
-                        .filter(s -> !s.endsWith("Integration.class"))
+                        .classLoader(classLoader)
                         .build());
+    
+    excludeFromAutoScan(className -> className.endsWith("Integration"));
   }
   
   public DiApplication(Log logger, ClassScanner scanner) {
@@ -48,6 +60,19 @@ public class DiApplication {
   public void registerExtension(Extension extension) {
     extensions.add(extension);
     extension.onRegister(this);
+  }
+
+  public void excludePackageFromAutoScan(String packageName) {
+    String normalized = packageName.endsWith(".") ? packageName.substring(0, packageName.length() - 1) : packageName;
+    container.getScanner().addClassNameFilter(className -> !className.equals(normalized) && !className.startsWith(normalized + "."));
+  }
+
+  public void excludeClassFromAutoScan(String className) {
+    container.getScanner().addClassNameFilter(name -> !name.equals(className));
+  }
+
+  public void excludeFromAutoScan(Predicate<String> excludeFilter) {
+    container.getScanner().addClassNameFilter(className -> !excludeFilter.test(className));
   }
   
   public <T> Optional<T> get(Class<T> clazz) {
