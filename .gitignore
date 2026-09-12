@@ -36,3 +36,24 @@ build/
 
 ### Mac OS ###
 .DS_Store
+### Additional IDE / Maven noise ###
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/shelf/
+.idea/uiDesigner.xml
+.idea/amplicode-jpa.xml
+.idea/jpa-buddy.xml
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/httpRequests/
+.flattened-pom.xml
+**/.flattened-pom.xml
+dependency-reduced-pom.xml
+**/dependency-reduced-pom.xml
+hs_err_pid*
+replay_pid*
+*.log
+out/
+.idea/misc.xml
+.idea/inspectionProfiles/Project_Default.xml
