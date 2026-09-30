@@ -45,18 +45,28 @@ public class Log {
     this.log(level, log, (Object[]) null);
   }
   
+  /**
+   * A trailing {@link Throwable} is always logged with its stack trace, whether or not a {@code {}} consumed it.
+   */
   public void log(LogLevel level, String log, Object... params) {
     String preparedString = null;
-    
+    Throwable throwable = null;
+
     for (LogConsumer consumer : consumers) {
       if (consumer.isEnabled(level)) {
         if (preparedString == null) {
           preparedString = preprocess(level, replacePlaceholders(log, params));
+          throwable = trailingThrowable(params);
         }
-        
-        consumer.consume(preparedString, level);
+
+        consumer.consume(preparedString, level, throwable);
       }
     }
+  }
+
+  private Throwable trailingThrowable(Object[] params) {
+    if (params == null || params.length == 0) return null;
+    return params[params.length - 1] instanceof Throwable throwable ? throwable : null;
   }
   
   private String preprocess(LogLevel level, String log) {

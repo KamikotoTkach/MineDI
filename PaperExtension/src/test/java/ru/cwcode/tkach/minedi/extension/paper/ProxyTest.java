@@ -1,9 +1,8 @@
 package ru.cwcode.tkach.minedi.extension.paper;
 
-import net.sf.cglib.proxy.Callback;
-import net.sf.cglib.proxy.Enhancer;
-import net.sf.cglib.proxy.MethodInterceptor;
-import net.sf.cglib.proxy.NoOp;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.implementation.FixedValue;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -13,10 +12,14 @@ import ru.cwcode.tkach.minedi.extension.paper.beans.ProxiedBean;
 import ru.cwcode.tkach.minedi.processing.event.BeanCreatedEvent;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 
+import java.lang.invoke.MethodHandles;
+
+import static net.bytebuddy.matcher.ElementMatchers.named;
+
 
 class ProxyTest {
   static DiApplication application;
-  
+
   @BeforeAll
   static void setUpBeforeClass() {
     application = new DiApplication(new TestLogger(), new TestClassScanner("target/test-classes/"));
@@ -26,35 +29,39 @@ class ProxyTest {
         application.getEventHandler().registerProcessor(new EventProcessor<>(BeanCreatedEvent.class) {
           @Override
           public void process(BeanCreatedEvent event, DiApplication application) {
-            if(event.getBean() instanceof ProxiedBean) {
-              Enhancer enhancer = new Enhancer();
-              enhancer.setSuperclass(ProxiedBean.class);
-              
-              enhancer.setCallbackFilter(method -> method.getName().equals("isProxied") ? 0 : 1);
-              
-              enhancer.setCallbacks(new Callback[]{
-                (MethodInterceptor) (o, method, args, methodProxy) -> true,
-                NoOp.INSTANCE
-              });
-              
-              event.setReplacement(enhancer.create());
+            if (event.getBean() instanceof ProxiedBean) {
+              event.setReplacement(proxy(event.getBean().getClass()));
             }
           }
         });
       }
-      
+
       @Override
       public void onStart(DiApplication application) {
-      
+
       }
     });
     application.start();
   }
-  
+
+  private static Object proxy(Class<?> beanClass) {
+    try {
+      return new ByteBuddy().subclass(beanClass)
+                            .method(named("isProxied")).intercept(FixedValue.value(true))
+                            .make()
+                            .load(beanClass.getClassLoader(), ClassLoadingStrategy.UsingLookup.of(MethodHandles.privateLookupIn(beanClass, MethodHandles.lookup())))
+                            .getLoaded()
+                            .getDeclaredConstructor()
+                            .newInstance();
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   @Test
   void testBeanConstructedEventProperlyCalled() {
     ProxiedBean proxiedBean = application.get(ProxiedBean.class).orElseThrow(RuntimeException::new);
-    
+
     Assertions.assertTrue(proxiedBean.isProxied());
   }
 }

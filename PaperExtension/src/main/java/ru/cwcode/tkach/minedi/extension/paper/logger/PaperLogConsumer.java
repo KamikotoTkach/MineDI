@@ -25,12 +25,17 @@ public class PaperLogConsumer implements LogConsumer {
   
   @Override
   public void consume(String log, LogLevel level) {
+    consume(log, level, null);
+  }
+
+  @Override
+  public void consume(String log, LogLevel level, Throwable throwable) {
     Level l = switch (level) {
       case DEBUG, INFO -> Level.INFO; //because bukkit handling only "info", "warning", "severe" levels
       case WARNING -> Level.WARNING;
       case ERROR -> Level.SEVERE;
     };
-    
-    plugin.getLogger().log(l, log);
+
+    plugin.getLogger().log(l, log, throwable);
   }
 }

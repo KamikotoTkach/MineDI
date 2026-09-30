@@ -1,6 +1,7 @@
 package ru.cwcode.tkach.minedi.extension.velocity.logger;
 
 import org.slf4j.event.Level;
+import org.slf4j.spi.LoggingEventBuilder;
 import ru.cwcode.tkach.minedi.extension.velocity.VelocityPlatform;
 import ru.cwcode.tkach.minedi.logging.LogConsumer;
 import ru.cwcode.tkach.minedi.logging.LogLevel;
@@ -22,13 +23,20 @@ public class VelocityLogConsumer implements LogConsumer {
   
   @Override
   public void consume(String log, LogLevel level) {
+    consume(log, level, null);
+  }
+
+  @Override
+  public void consume(String log, LogLevel level, Throwable throwable) {
     Level l = switch (level) {
       case DEBUG -> Level.TRACE;
       case INFO -> Level.INFO;
       case WARNING -> Level.WARN;
       case ERROR -> Level.ERROR;
     };
-    
-    plugin.getLogger().atLevel(l).log(log);
+
+    LoggingEventBuilder event = plugin.getLogger().atLevel(l);
+    if (throwable != null) event = event.setCause(throwable);
+    event.log(log);
   }
 }

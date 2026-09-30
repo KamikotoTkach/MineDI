@@ -13,7 +13,8 @@ public class VelocityLogger extends Log {
     
     LogState logState = new LogState();
     for (LogLevel value : LogLevel.values()) {
-      Boolean logLevelState = config.getParsed(value.name().toLowerCase(), Boolean.class);
+      // getParsed would parse the "[Key … not found]" placeholder of an absent key as false and mute that level
+      Boolean logLevelState = config.get(value.name().toLowerCase(), Boolean.class, null);
       if (logLevelState != null) logState.setEnabled(value, logLevelState);
     }
     

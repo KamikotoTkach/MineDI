@@ -22,6 +22,28 @@ class AsyncAnnotationProcessorTest {
     assertListenerProxyRejected(new SyncListenerService());
   }
   
+  @Test
+  void shouldReplaceServiceWithGeneratedSubclass() {
+    BeanCreatedEvent event = new BeanCreatedEvent(new AsyncService());
+
+    processor.process(event, null);
+
+    Object replacement = event.getReplacement();
+    Assertions.assertNotNull(replacement);
+    Assertions.assertNotSame(AsyncService.class, replacement.getClass());
+    Assertions.assertInstanceOf(AsyncService.class, replacement);
+    Assertions.assertSame(AsyncService.class.getClassLoader(), replacement.getClass().getClassLoader());
+  }
+
+  @Test
+  void shouldRejectPrivateAsyncMethod() {
+    IllegalStateException exception = Assertions.assertThrows(IllegalStateException.class, () ->
+      processor.process(new BeanCreatedEvent(new PrivateAsyncService()), null)
+    );
+
+    Assertions.assertTrue(exception.getMessage().contains("must be overridable"));
+  }
+
   private void assertListenerProxyRejected(Object bean) {
     IllegalStateException exception = Assertions.assertThrows(IllegalStateException.class, () ->
       processor.process(new BeanCreatedEvent(bean), null)
@@ -31,6 +53,20 @@ class AsyncAnnotationProcessorTest {
     Assertions.assertTrue(exception.getMessage().contains("listener registration scans declared methods"));
   }
   
+  @Service
+  public static class AsyncService {
+    @Async
+    public void runAsync() {
+    }
+  }
+
+  @Service
+  static class PrivateAsyncService {
+    @Async
+    private void runAsync() {
+    }
+  }
+
   @Service
   static class AsyncListenerService implements Listener {
     @Async
