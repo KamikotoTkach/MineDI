@@ -51,6 +51,11 @@ public class PlaceholderAdapter {
       }
       
       @Override
+      public boolean persist() {
+        return true;
+      }
+      
+      @Override
       public @Nullable String onRequest(OfflinePlayer player, @NotNull String params) {
         return PlaceholderAdapter.this.onRequest(getIdentifier(), player, params);
       }

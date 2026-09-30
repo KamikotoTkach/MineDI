@@ -9,6 +9,7 @@ import com.velocitypowered.api.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Plugin(
@@ -41,8 +42,7 @@ public class Main {
         plugin.onProxyInitialization();
         
       } catch (Throwable e) {
-        logger.warning("Cannot pass ProxyInitializeEvent to " + pluginName);
-        e.printStackTrace();
+        logger.log(Level.WARNING, "Cannot pass ProxyInitializeEvent to " + pluginName, e);
       }
     }
   }
