@@ -209,24 +209,26 @@ public class DiContainer {
     if (beans.containsKey(clazz)) return;
 
     BeanData value;
+    int constructors;
     try {
       value = new BeanData(clazz, this);
+
+      if (!ignoreComponentRequiredAnnotation && !value.isAnnotationPresent(Component.class)) {
+        application.getLogger().info("Class {} ignored", clazz.getName());
+        return;
+      }
+
+      if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
+        application.getLogger().info("Class {} skipped: interfaces and abstract classes are not beans", clazz.getName());
+        return;
+      }
+
+      constructors = clazz.getDeclaredConstructors().length;
     } catch (LinkageError | TypeNotPresentException e) {
-      application.getLogger().warn("Class {} skipped: {}", clazz.getName(), e.getMessage());
+      // a nested or synthetic class of an integration over an absent soft-dependency (Outer$1 of an enum switch)
+      application.getLogger().warn("Class {} skipped, it refers to a missing class: {}", clazz.getName(), e.toString());
       return;
     }
-
-    if (!ignoreComponentRequiredAnnotation && !value.isAnnotationPresent(Component.class)) {
-      application.getLogger().info("Class " + clazz.getSimpleName() + " ignored");
-      return;
-    }
-
-    if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
-      application.getLogger().info("Class {} skipped: interfaces and abstract classes are not beans", clazz.getName());
-      return;
-    }
-
-    int constructors = clazz.getDeclaredConstructors().length;
     if (constructors != 1) {
       throw new BeanDefinitionException(("%s: bean %s declares %d constructors, a bean needs exactly one. "
                                          + "Lombok @NoArgsConstructor/@AllArgsConstructor/@RequiredArgsConstructor count too")
