@@ -20,23 +20,19 @@ public class BeanConstructorImpl implements BeanConstructor {
     Object[] parameters = new Object[parameterTypes.length];
     
     for (int i = 0; i < parameterTypes.length; i++) {
-      Class<?> parameterType = parameterTypes[i];
-      Object dependency = application.getContainer().createOrGet(parameterType);
-      if (dependency == null) {
-        throw new RuntimeException("No dependency found for '%s' while constructing bean '%s'".formatted(parameterType, clazz.getName()));
-      }
-      
-      parameters[i] = dependency;
+      parameters[i] = application.getContainer().createOrGet(parameterTypes[i]);
     }
-    
+
     try {
       T bean = (T) constructor.newInstance(parameters);
       BeanCreatedEvent event = new BeanCreatedEvent(bean);
       application.getEventHandler().handleEvent(event);
-      
+
       return (T) event.getBean();
-    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-      throw new RuntimeException(e);
+    } catch (InvocationTargetException e) {
+      throw new RuntimeException("Constructor of bean " + clazz.getName() + " failed", e.getCause());
+    } catch (InstantiationException | IllegalAccessException e) {
+      throw new RuntimeException("Cannot construct bean " + clazz.getName(), e);
     }
   }
 }

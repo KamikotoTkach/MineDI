@@ -1,10 +1,12 @@
 package ru.cwcode.tkach.minedi;
 
 import lombok.Getter;
+import lombok.Setter;
 import ru.cwcode.tkach.minedi.condition.ConditionParser;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructorImpl;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructors;
 import ru.cwcode.tkach.minedi.extension.Extension;
+import ru.cwcode.tkach.minedi.foreign.ForeignBeanResolver;
 import ru.cwcode.tkach.minedi.logging.Log;
 import ru.cwcode.tkach.minedi.processing.EventHandler;
 import ru.cwcode.tkach.minedi.processing.EventHandlerImpl;
@@ -16,6 +18,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 @Getter
@@ -26,15 +29,25 @@ public class DiApplication {
   private final List<Extension> extensions = new LinkedList<>();
   private final Log logger;
   private final ConditionParser conditionParser = new ConditionParser();
-  
+
+  /**
+   * Plugin name used in error messages.
+   */
+  @Setter
+  private String name = "MineDI";
+  @Setter
+  private ForeignBeanResolver foreignResolver = ForeignBeanResolver.NONE;
+  private boolean started = false;
+
   boolean isLoaded = false;
-  
+
   public DiApplication(Log logger, File jarfile, String packageName) {
     this(logger, JarClassScanner.builder()
                                 .jar(jarfile)
                                 .packageName(packageName)
+                                .loadFailureListener(loadFailureLogger(logger))
                                 .build());
-    
+
     excludeFromAutoScan(className -> className.endsWith("Integration"));
   }
 
@@ -43,9 +56,14 @@ public class DiApplication {
                         .jar(jarfile)
                         .packageName(packageName)
                         .classLoader(classLoader)
+                        .loadFailureListener(loadFailureLogger(logger))
                         .build());
-    
+
     excludeFromAutoScan(className -> className.endsWith("Integration"));
+  }
+
+  private static BiConsumer<String, Throwable> loadFailureLogger(Log logger) {
+    return (className, error) -> logger.warn("Class {} is not loaded and will not be scanned: {}", className, error.toString());
   }
   
   public DiApplication(Log logger, ClassScanner scanner) {
@@ -106,6 +124,7 @@ public class DiApplication {
     container.registerBeans();
     
     extensions.forEach(extension -> extension.onStart(this));
+    started = true;
   }
   
   public void load() {

@@ -53,6 +53,8 @@ public class PaperPlatform extends Bootstrap {
     logger.debug("PreLoad");
     
     diApplication = new DiApplication(logger, getFile(), getClass().getPackageName(), getClassLoader());
+    diApplication.setName(getName());
+    diApplication.setForeignResolver(new PaperForeignBeanResolver());
     configureDiApplication(diApplication);
     diApplication.load();
     

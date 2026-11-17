@@ -42,6 +42,10 @@ public class SingletonBeanProvider implements BeanProvider {
     return value;
   }
   
+  public @Nullable Object getExisting(Class<?> clazz) {
+    return singletons.get(clazz);
+  }
+
   public void set(Class<?> clazz, Object object) {
     singletons.put(clazz, object);
   }

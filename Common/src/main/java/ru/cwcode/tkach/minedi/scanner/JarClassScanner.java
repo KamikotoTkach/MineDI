@@ -8,6 +8,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 @Builder
@@ -16,6 +17,7 @@ public class JarClassScanner implements ClassScanner {
   String packageName;
   Predicate<String> filter;
   ClassLoader classLoader;
+  BiConsumer<String, Throwable> loadFailureListener;
   @Default
   List<Predicate<String>> classNameFilters = new ArrayList<>();
 
@@ -26,7 +28,9 @@ public class JarClassScanner implements ClassScanner {
   
   @Override
   public Set<Class<?>> scan() {
-    return ReflectionUtils.getClasses(jar, packageName, this::isAllowed, classLoader);
+    if (loadFailureListener == null) return ReflectionUtils.getClasses(jar, packageName, this::isAllowed, classLoader);
+
+    return ReflectionUtils.getClasses(jar, packageName, this::isAllowed, classLoader, loadFailureListener);
   }
 
   private boolean isAllowed(String className) {

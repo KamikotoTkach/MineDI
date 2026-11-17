@@ -1,10 +1,13 @@
 package ru.cwcode.tkach.minedi.utils;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -16,6 +19,11 @@ public class ReflectionUtils {
 
   public static Set<Class<?>> getClasses(File jarFile, String packageName, Predicate<String> filter, ClassLoader classLoader) {
     return loadClasses(getClassNames(jarFile, packageName, filter), classLoader);
+  }
+
+  public static Set<Class<?>> getClasses(File jarFile, String packageName, Predicate<String> filter, ClassLoader classLoader,
+                                         BiConsumer<String, Throwable> onLoadFailure) {
+    return loadClasses(getClassNames(jarFile, packageName, filter), classLoader, onLoadFailure);
   }
 
   public static Set<String> getClassNames(File jarFile, String packageName, Predicate<String> filter) {
@@ -32,8 +40,8 @@ public class ReflectionUtils {
           if (filter == null || filter.test(className)) classNames.add(className);
         }
       }
-    } catch (Exception e) {
-      e.printStackTrace();
+    } catch (IOException e) {
+      throw new UncheckedIOException("Cannot read classes of " + jarFile, e);
     }
 
     return classNames;
@@ -44,13 +52,17 @@ public class ReflectionUtils {
   }
 
   public static Set<Class<?>> loadClasses(Set<String> classNames, ClassLoader classLoader) {
+    return loadClasses(classNames, classLoader, (className, error) -> System.err.println("Could not load class " + className + ": " + error.getMessage()));
+  }
+
+  public static Set<Class<?>> loadClasses(Set<String> classNames, ClassLoader classLoader, BiConsumer<String, Throwable> onLoadFailure) {
     Set<Class<?>> classes = new HashSet<>();
 
     for (String className : classNames) {
       try {
         classes.add(loadClass(className, classLoader));
       } catch (ClassNotFoundException | LinkageError e) {
-        System.err.println("Could not load class " + className + ": " + e.getMessage());
+        onLoadFailure.accept(className, e);
       }
     }
 

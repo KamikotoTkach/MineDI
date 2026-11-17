@@ -57,6 +57,10 @@ public abstract class VelocityPlatform {
     return getServer().getPluginManager().ensurePluginContainer(this);
   }
   
+  public String getPluginId() {
+    return getPluginContainer().getDescription().getId();
+  }
+
   public File getPluginFile() {
     return getPluginContainer()
       .getDescription()
@@ -68,6 +72,8 @@ public abstract class VelocityPlatform {
     logger = new VelocityLogger(this);
     
     diApplication = new DiApplication(logger, getPluginFile(), getClass().getPackageName(), getClass().getClassLoader());
+    diApplication.setName(getPluginId());
+    diApplication.setForeignResolver(new VelocityForeignBeanResolver());
     configureDiApplication(diApplication);
     
     diApplication.registerExtension(velocityExtension = new VelocityExtension(this));
