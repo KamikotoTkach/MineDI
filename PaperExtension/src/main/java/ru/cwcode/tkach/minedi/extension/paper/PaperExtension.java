@@ -7,7 +7,6 @@ import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.extension.Extension;
 import ru.cwcode.tkach.minedi.extension.paper.condition.HasPluginCondition;
 import ru.cwcode.tkach.minedi.extension.paper.condition.VersionCondition;
-import ru.cwcode.tkach.minedi.extension.paper.listener.ConfigReloadByWebEditorListener;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAdapter;
 import ru.cwcode.tkach.minedi.extension.paper.placeholder.PlaceholderAnnotationProcessor;
 import ru.cwcode.tkach.minedi.extension.paper.processor.*;
@@ -60,9 +59,6 @@ public class PaperExtension implements Extension {
   
   @Override
   public void onStart(DiApplication application) {
-    if (Bukkit.getPluginManager().getPlugin("CWConfigWebEditor") != null) {
-      new ConfigReloadByWebEditorListener(application);
-    }
   }
   
   public void onPluginEnable() {

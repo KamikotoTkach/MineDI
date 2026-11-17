@@ -62,7 +62,8 @@ public class PaperPlatform extends Bootstrap {
     
     ymlConfigManager = new YmlConfigManager(getConfigPlatform(), new ConfigCreator(diApplication));
     ymlRepositoryManager = new YmlRepositoryManager(ymlConfigManager);
-    
+    ymlConfigManager.addReplaceListener(new DiConfigReplaceListener(diApplication));
+
     ymlConfigManager.mapper().getMapper().setInjectableValues(new DiInjectableValues(diApplication));
     
     SimpleModule injectableExclusion = new SimpleModule();
@@ -138,9 +139,6 @@ public class PaperPlatform extends Bootstrap {
   }
   
   protected Command paperReload() {
-    return ReloadCommands.get(ymlConfigManager, ymlConfig -> {
-      diApplication.getContainer().recreate(ymlConfig.getClass(), ymlConfig);
-      diApplication.getEventHandler().handleEvent(new ConfigReloadEvent(ymlConfig));
-    });
+    return ReloadCommands.get(ymlConfigManager);
   }
 }

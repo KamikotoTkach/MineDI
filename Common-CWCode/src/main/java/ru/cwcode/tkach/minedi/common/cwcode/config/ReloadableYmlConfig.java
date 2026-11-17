@@ -2,21 +2,19 @@ package ru.cwcode.tkach.minedi.common.cwcode.config;
 
 import ru.cwcode.tkach.config.annotation.Reloadable;
 import ru.cwcode.tkach.config.jackson.yaml.YmlConfig;
-import ru.cwcode.tkach.minedi.DiApplication;
 
 public class ReloadableYmlConfig extends YmlConfig implements Reloadable {
-  
-  transient DiApplication diApplication;
-  
+
+  /**
+   * Reads the file again under the same name. The bean swap and {@link ConfigReloadEvent} come from
+   * {@link DiConfigReplaceListener}, the same path the web editor and {@code config fetch} take.
+   */
   @Override
   public boolean reload() {
     try {
-      ReloadableYmlConfig config = diApplication.getContainer().create(this.getClass());
-      diApplication.getContainer().recreate(this.getClass(), config);
-      return true;
-      
+      return manager.load(name(), getClass()) != null;
     } catch (Exception e) {
-      e.printStackTrace();
+      manager.platform().warning("Cannot reload config " + name(), e);
       return false;
     }
   }
