@@ -588,10 +588,11 @@ public class DiContainer {
       }
     });
 
-    singletonBeanProvider.getBeanClasses()
-                         .stream()
-                         .map(x -> get(x).orElseThrow())
-                         .forEach(this::populateBeanFields);
+    // a copy: populating a field may import another plugin's bean, which adds a singleton
+    List.copyOf(singletonBeanProvider.getBeanClasses())
+        .stream()
+        .map(x -> get(x).orElseThrow())
+        .forEach(this::populateBeanFields);
   }
 
   private <T> T create0(Class<T> clazz) {

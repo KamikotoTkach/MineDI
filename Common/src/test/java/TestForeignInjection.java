@@ -1,4 +1,5 @@
 import isolated.foreign.consumer.ConsumerCtorService;
+import isolated.foreign.consumer.ConsumerRegisteredObject;
 import isolated.foreign.consumer.ConsumerService;
 import isolated.foreign.consumer.ConsumerStaticHolder;
 import isolated.foreign.owner.*;
@@ -122,6 +123,19 @@ public class TestForeignInjection {
     owner.getContainer().recreate(OwnerSettings.class, reloaded);
 
     assertSame(reloaded, consumer.get(ConsumerService.class).orElseThrow().getSettings());
+  }
+
+  @Test
+  public void registeredObjectImportsWhileSingletonsArePopulated() {
+    DiApplication owner = owner();
+    DiApplication consumer = consumer(owner);
+    owner.start();
+
+    ConsumerRegisteredObject registered = new ConsumerRegisteredObject();
+    consumer.register(registered);
+    consumer.start();
+
+    assertSame(owner.get(OwnerAuditService.class).orElseThrow(), registered.getAuditService());
   }
 
   @Test
