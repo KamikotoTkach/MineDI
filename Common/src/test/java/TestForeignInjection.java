@@ -7,7 +7,12 @@ import org.junit.jupiter.api.Test;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.data.ForeignOwner;
 import ru.cwcode.tkach.minedi.exception.ForeignBeanUnavailableException;
+import ru.cwcode.tkach.minedi.logging.Log;
+import ru.cwcode.tkach.minedi.logging.LogConsumer;
+import ru.cwcode.tkach.minedi.logging.LogLevel;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -94,6 +99,36 @@ public class TestForeignInjection {
     ForeignBeanUnavailableException error = assertThrows(ForeignBeanUnavailableException.class, consumer::start);
     assertTrue(error.getMessage().contains("has not started yet"), error.getMessage());
     assertTrue(error.getMessage().contains(ConsumerCtorService.class.getName()), error.getMessage());
+  }
+
+  @Test
+  public void ownerThatHasNotStartedOnlyWarnsForFields() {
+    DiApplication owner = owner();
+    List<LogLevel> levels = new ArrayList<>();
+    Log log = new Log() {{
+      consumers.add(new LogConsumer() {
+        @Override
+        public boolean isEnabled(LogLevel level) {
+          return true;
+        }
+
+        @Override
+        public void consume(String message, LogLevel level) {
+          if (message.contains("has not started yet")) levels.add(level);
+        }
+      });
+    }};
+    DiApplication consumer = new DiApplication(log, new TestClassScanner(CLASSES, "isolated.foreign.consumer."));
+    consumer.setName("consumer");
+    consumer.setForeignResolver(type -> type.getName().startsWith("isolated.foreign.owner.")
+                                        ? Optional.of(new ForeignOwner("owner", owner))
+                                        : Optional.empty());
+    consumer.excludeClassFromAutoScan(ConsumerCtorService.class.getName());
+
+    assertDoesNotThrow(consumer::start);
+    assertNull(consumer.get(ConsumerService.class).orElseThrow().getOwnerService());
+    assertFalse(levels.isEmpty());
+    assertTrue(levels.stream().allMatch(LogLevel.WARNING::equals), levels.toString());
   }
 
   @Test

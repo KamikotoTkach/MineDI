@@ -417,7 +417,8 @@ public class DiContainer {
     if (!owner.application().isStarted()) {
       String message = "%s: %s belongs to plugin %s, which has not started yet. Add %s to depend/softdepend (Velocity: @Plugin dependencies) of %s"
         .formatted(application.getName(), type.getName(), owner.name(), owner.name(), application.getName());
-      return fail(mode, new ForeignBeanUnavailableException(withRequiredBy(message, requiredBy)), LogLevel.ERROR);
+      // A field may legitimately point at a plugin that enables later and resolve it lazily; constructors and get() still throw
+      return fail(mode, new ForeignBeanUnavailableException(withRequiredBy(message, requiredBy)), LogLevel.WARNING);
     }
 
     DiContainer ownerContainer = owner.application().getContainer();
