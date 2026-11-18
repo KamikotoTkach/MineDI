@@ -3,6 +3,7 @@ package ru.cwcode.minediprobe.paper;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.cwcode.cwutils.compat.AdventureCompats;
+import ru.cwcode.minediprobe.paper.present.PresentIntegration;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.annotation.EventListener;
 import ru.cwcode.tkach.minedi.annotation.Service;
@@ -35,6 +36,21 @@ public class ProbeRunner {
     check("bean hasPlugin(NoSuchPlugin) skipped", application.get(MissingIntegration.class).isEmpty(), "");
     Bukkit.getPluginManager().callEvent(new ProbeEvent());
     check("bean listener registered once", listener != null && listener.received == 1, "received=" + (listener == null ? "-" : listener.received));
+    check("static field of @Bean-made class", ProbeListenerIntegration.greetingService == greetingService,
+          "field=" + ProbeListenerIntegration.greetingService);
+
+    ProbeChain chain = application.get(ProbeChain.class).orElse(null);
+    check("@Bean parameter from a later sibling", chain != null && chain.link() == application.get(ProbeLink.class).orElse(null),
+          "chain=" + chain);
+
+    // loading these would throw NoClassDefFoundError (Velocity API) and log "is not loaded and will not be scanned"
+    check("@Conditional package false: classes not scanned",
+          application.getContainer().findScannedClass("ru.cwcode.minediprobe.paper.missing.AbsentApiService") == null
+          && application.getContainer().findScannedClass("ru.cwcode.minediprobe.paper.missing.MissingHelper") == null,
+          "and no 'is not loaded' warning above");
+    PresentIntegration present = application.get(PresentIntegration.class).orElse(null);
+    check("@Conditional package true: Integration bean", present != null, "present=" + present);
+    check("@Conditional bean static field", PresentIntegration.greetingService == greetingService, "field=" + PresentIntegration.greetingService);
 
     check("@Async/@Sync proxied", asyncWorker.getClass() != AsyncWorker.class, asyncWorker.getClass().getName());
     asyncWorker.work();
@@ -49,6 +65,7 @@ public class ProbeRunner {
       check("@Sync from async returned the main thread's result", Boolean.TRUE.equals(asyncWorker.syncResultFromMainThread),
             "result=" + asyncWorker.syncResultFromMainThread);
       check("@Repeat ticks", repeater.ticks > 10, "ticks=" + repeater.ticks);
+      check("@Repeat in a @Conditional class", present != null && present.ticks > 10, "ticks=" + (present == null ? "-" : present.ticks));
       logger().info("PROBE RESULT " + passed + "/" + total);
     }, 40);
   }

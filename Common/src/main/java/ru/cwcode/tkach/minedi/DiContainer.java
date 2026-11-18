@@ -18,13 +18,16 @@ import ru.cwcode.tkach.minedi.processing.event.ComponentRegisteredEvent;
 import ru.cwcode.tkach.minedi.processing.event.ComponentsRegisteredEvent;
 import ru.cwcode.tkach.minedi.provider.BeanProvider;
 import ru.cwcode.tkach.minedi.provider.SingletonBeanProvider;
+import ru.cwcode.tkach.minedi.condition.MethodCondition;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
+import ru.cwcode.tkach.minedi.scanner.ScanResult;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class DiContainer {
@@ -36,6 +39,9 @@ public class DiContainer {
   ClassScanner scanner;
 
   Set<Class<?>> classes;
+  List<ScanResult.ConditionalClass> conditionalClasses = List.of();
+  List<String> conditionDefinitions = List.of();
+  Function<String, @Nullable Class<?>> scanLoader = name -> null;
   Map<Class<?>, BeanData> beans = new ConcurrentHashMap<>();
   Map<String, BeanProvider> beanProviders = new ConcurrentHashMap<>();
   Map<Class<?>, List<Field>> staticFields = new ConcurrentHashMap<>();
@@ -250,8 +256,41 @@ public class DiContainer {
     application.getEventHandler().handleEvent(new ComponentRegisteredEvent(clazz));
 
     populateBeanFields(instance);
+    injectOwnStaticFields(instance.getClass());
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
     injectBeanInStaticFields(clazz);
+  }
+
+  /**
+   * A class created by a {@code @Bean} method is not scanned (an {@code *Integration} is even excluded), so its own static
+   * fields are indexed here: filled now and refreshed on reload like those of scanned classes.
+   */
+  private void injectOwnStaticFields(Class<?> clazz) {
+    if (classes != null && classes.contains(clazz)) return;
+
+    Field[] declared;
+    try {
+      declared = clazz.getDeclaredFields();
+    } catch (LinkageError | TypeNotPresentException e) {
+      application.getLogger().warn("Static fields of {} are not injected: {}", clazz.getName(), e.toString());
+      return;
+    }
+
+    for (Field field : declared) {
+      if (!Modifier.isStatic(field.getModifiers()) || Modifier.isFinal(field.getModifiers())) continue;
+
+      List<Field> fields = staticFields.computeIfAbsent(field.getType(), key -> new ArrayList<>());
+      if (!fields.contains(field)) fields.add(field);
+
+      resolveKey(field.getType(), ResolveMode.WARN, describe(field)).ifPresent(key -> {
+        try {
+          field.setAccessible(true);
+          field.set(null, provide(key));
+        } catch (IllegalAccessException e) {
+          throw new IllegalStateException("Cannot inject " + describe(field), e);
+        }
+      });
+    }
   }
 
   public boolean validateBean(Class<?> clazz) {
@@ -271,10 +310,95 @@ public class DiContainer {
 
   protected void scanClasses() {
     application.getLogger().info("Scanning classes...");
-    classes = scanner.scan();
-    application.getLogger().info("Founded " + classes.size() + " classes");
+    ScanResult result = scanner.scanResult();
+    classes = ConcurrentHashMap.newKeySet();
+    classes.addAll(result.classes());
+    conditionalClasses = result.conditional();
+    conditionDefinitions = result.conditionDefinitions();
+    scanLoader = result.loader();
+    application.getLogger().info("Founded {} classes, {} more under conditions", classes.size(), conditionalClasses.size());
 
-    scanForStaticFields();
+    staticFields.clear();
+    scanForStaticFields(classes);
+  }
+
+  /**
+   * Registers the conditions this plugin defines, then loads the conditional classes whose conditions hold.
+   * Runs when the container starts: other plugins and the configs are there by then.
+   */
+  protected void resolveConditions() {
+    for (String definition : conditionDefinitions) {
+      Class<?> clazz = scanLoader.apply(definition);
+      if (clazz == null) {
+        throw new BeanDefinitionException("%s: condition class %s cannot be loaded".formatted(application.getName(), definition));
+      }
+      MethodCondition.of(application.getName(), clazz).forEach(application.getConditionParser()::registerOwn);
+    }
+
+    Map<String, Boolean> results = new HashMap<>();
+    List<Class<?>> accepted = new ArrayList<>();
+    int skipped = 0;
+
+    for (ScanResult.ConditionalClass conditional : conditionalClasses) {
+      String failedCondition = null;
+      for (String condition : conditional.conditions()) {
+        boolean holds;
+        try {
+          holds = results.computeIfAbsent(condition, application.getConditionParser()::parse);
+        } catch (BeanDefinitionException e) {
+          throw new BeanDefinitionException("%s (in @Conditional of %s)".formatted(e.getMessage(), conditional.name()));
+        }
+        if (!holds) {
+          failedCondition = condition;
+          break;
+        }
+      }
+
+      if (failedCondition != null) {
+        skipped++;
+        application.getLogger().info("Class {} skipped: condition '{}' is false", conditional.name(), failedCondition);
+        continue;
+      }
+
+      Class<?> clazz = scanLoader.apply(conditional.name());
+      if (clazz != null) accepted.add(clazz);
+    }
+
+    classes.addAll(accepted);
+    scanForStaticFields(accepted);
+    conditionalClasses = List.of();
+    conditionDefinitions = List.of();
+
+    if (skipped > 0) {
+      application.getLogger().info("{} classes skipped by conditions, {} loaded", skipped, accepted.size());
+    }
+  }
+
+  /**
+   * A scanned class by full or simple name, for conditions that read a bean.
+   */
+  public @Nullable Class<?> findScannedClass(String name) {
+    if (classes == null) return null;
+
+    List<Class<?>> found = classes.stream()
+                                  .filter(clazz -> clazz.getName().equals(name) || clazz.getSimpleName().equals(name))
+                                  .toList();
+    if (found.size() > 1) {
+      throw new BeanDefinitionException("%s: several classes are named %s: %s, use the full name"
+                                          .formatted(application.getName(), name, found.stream().map(Class::getName).toList()));
+    }
+    return found.isEmpty() ? null : found.get(0);
+  }
+
+  /**
+   * The bean of a scanned class while conditions are evaluated, before the components are registered.
+   */
+  public Object getForCondition(Class<?> clazz) {
+    registerComponent(clazz);
+    if (!beans.containsKey(clazz)) {
+      throw new BeanDefinitionException("%s: %s is not a component".formatted(application.getName(), clazz.getName()));
+    }
+    return createOrGet(clazz);
   }
 
   public SingletonBeanProvider singletonBeanProvider() {
@@ -540,10 +664,10 @@ public class DiContainer {
     return field.getDeclaringClass().getName() + "." + field.getName();
   }
 
-  private void scanForStaticFields() {
+  private void scanForStaticFields(Collection<Class<?>> scanned) {
     application.getLogger().info("Scanning for static fields");
 
-    for (Class<?> clazz : classes) {
+    for (Class<?> clazz : scanned) {
       try {
         for (Field declaredField : clazz.getDeclaredFields()) {
           if (Modifier.isStatic(declaredField.getModifiers())) {

@@ -15,6 +15,8 @@ import ru.cwcode.tkach.config.relocate.com.fasterxml.jackson.databind.module.Sim
 import ru.cwcode.tkach.config.repository.yml.YmlRepositoryManager;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.common.cwcode.config.*;
+import ru.cwcode.tkach.minedi.condition.ConditionRegistry;
+import ru.cwcode.tkach.minedi.condition.ConditionSource;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginDisableEvent;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginEnableEvent;
 import ru.cwcode.tkach.minedi.extension.paper.logger.PaperLogger;
@@ -55,10 +57,10 @@ public class PaperPlatform extends Bootstrap {
     diApplication = new DiApplication(logger, getFile(), getClass().getPackageName(), getClassLoader());
     diApplication.setName(getName());
     diApplication.setForeignResolver(new PaperForeignBeanResolver());
+    ConditionRegistry.GLOBAL.addSource(ConditionSource.ofJar(this::getName, this::getFile, getClass().getPackageName(), getClassLoader()));
     configureDiApplication(diApplication);
-    diApplication.load();
-    
     diApplication.registerExtension(paperExtension = new PaperExtension(this));
+    diApplication.load();
     
     ymlConfigManager = new YmlConfigManager(getConfigPlatform(), new ConfigCreator(diApplication));
     ymlRepositoryManager = new YmlRepositoryManager(ymlConfigManager);

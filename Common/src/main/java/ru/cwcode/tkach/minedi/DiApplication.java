@@ -3,6 +3,10 @@ package ru.cwcode.tkach.minedi;
 import lombok.Getter;
 import lombok.Setter;
 import ru.cwcode.tkach.minedi.condition.ConditionParser;
+import ru.cwcode.tkach.minedi.condition.ConditionRegistry;
+import ru.cwcode.tkach.minedi.condition.EnvCondition;
+import ru.cwcode.tkach.minedi.condition.HasClassCondition;
+import ru.cwcode.tkach.minedi.condition.PropertyCondition;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructorImpl;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructors;
 import ru.cwcode.tkach.minedi.extension.Extension;
@@ -33,7 +37,6 @@ public class DiApplication {
   /**
    * Plugin name used in error messages.
    */
-  @Setter
   private String name = "MineDI";
   @Setter
   private ForeignBeanResolver foreignResolver = ForeignBeanResolver.NONE;
@@ -48,7 +51,7 @@ public class DiApplication {
                                 .loadFailureListener(loadFailureLogger(logger))
                                 .build());
 
-    excludeFromAutoScan(className -> className.endsWith("Integration"));
+    excludeIntegrationsWithoutCondition();
   }
 
   public DiApplication(Log logger, File jarfile, String packageName, ClassLoader classLoader) {
@@ -59,7 +62,8 @@ public class DiApplication {
                         .loadFailureListener(loadFailureLogger(logger))
                         .build());
 
-    excludeFromAutoScan(className -> className.endsWith("Integration"));
+    excludeIntegrationsWithoutCondition();
+    conditionParser.register(new HasClassCondition(classLoader));
   }
 
   private static BiConsumer<String, Throwable> loadFailureLogger(Log logger) {
@@ -73,6 +77,31 @@ public class DiApplication {
     this.beanConstructors = new BeanConstructors(this);
     
     this.beanConstructors.getConstructors().addFirst(new BeanConstructorImpl());
+
+    conditionParser.setRegistry(ConditionRegistry.GLOBAL);
+    conditionParser.register(new EnvCondition());
+    conditionParser.register(new HasClassCondition(DiApplication.class.getClassLoader()));
+    conditionParser.register(new PropertyCondition(this));
+  }
+
+  /**
+   * The {@code *Integration} suffix keeps a class out of the scan unless it carries an explicit
+   * {@link ru.cwcode.tkach.minedi.annotation.Conditional}.
+   */
+  private void excludeIntegrationsWithoutCondition() {
+    container.getScanner().addUnconditionalClassNameFilter(className -> !className.endsWith("Integration"));
+  }
+
+  public void setName(String name) {
+    this.name = name;
+    conditionParser.setOwner(name);
+  }
+
+  /**
+   * Where conditions of other plugins come from; {@link ConditionRegistry#GLOBAL} by default.
+   */
+  public void setConditionRegistry(ConditionRegistry registry) {
+    conditionParser.setRegistry(registry);
   }
   
   public void registerExtension(Extension extension) {
@@ -121,6 +150,7 @@ public class DiApplication {
   public void start() {
     if(!isLoaded) load();
     logger.info("Starting MineDI");
+    container.resolveConditions();
     container.registerBeans();
     
     extensions.forEach(extension -> extension.onStart(this));

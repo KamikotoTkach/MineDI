@@ -15,6 +15,8 @@ import ru.cwcode.tkach.config.repository.yml.YmlRepositoryManager;
 import ru.cwcode.tkach.config.velocityplatform.VelocityPluginConfigPlatform;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.common.cwcode.config.*;
+import ru.cwcode.tkach.minedi.condition.ConditionRegistry;
+import ru.cwcode.tkach.minedi.condition.ConditionSource;
 import ru.cwcode.tkach.minedi.extension.velocity.event.PluginDisableEvent;
 import ru.cwcode.tkach.minedi.extension.velocity.event.PluginEnableEvent;
 import ru.cwcode.tkach.minedi.extension.velocity.logger.VelocityLogger;
@@ -45,6 +47,9 @@ public abstract class VelocityPlatform {
     Main.plugins.add(this);  // т.к. нет возможности зарегать листенер до того, как плагин будет зарегистрирован,
                              // приходится делать вот такой трюк. (регаются только declared методы,
                              // а мы в абстрактном классе так-то)
+    // read lazily: the server and the plugin id are injected after this constructor
+    ConditionRegistry.GLOBAL.addSource(ConditionSource.ofJar(this::getPluginId, this::getPluginFile,
+                                                             getClass().getPackageName(), getClass().getClassLoader()));
   }
   
   public abstract ProxyServer getServer();

@@ -7,6 +7,7 @@ import org.bukkit.event.Listener;
  * Created only by a conditional {@code @Bean}; MineDI must register it with Bukkit exactly once.
  */
 public class ProbeListenerIntegration implements Listener {
+  static GreetingService greetingService;
   int received;
 
   @EventHandler
