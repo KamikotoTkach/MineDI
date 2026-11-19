@@ -12,6 +12,7 @@
     <modules>
         <module>Common</module>
         <module>Common-CWCode</module>
+        <module>Starters</module>
         <module>PaperExtension</module>
         <module>VelocityExtension</module>
     </modules>

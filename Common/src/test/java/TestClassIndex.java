@@ -26,7 +26,7 @@ public class TestClassIndex {
   Path temp;
 
   @Test
-  public void readsClassesNewerThanAsm() throws IOException {
+  public void readsJava25Classes() throws IOException {
     File jar = temp.resolve("plugin.jar").toFile();
     try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar.toPath()))) {
       write(out, "probe/integration/package-info", "hasPlugin(A)", false);

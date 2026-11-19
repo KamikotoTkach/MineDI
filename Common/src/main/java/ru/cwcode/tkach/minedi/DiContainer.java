@@ -28,6 +28,7 @@ import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class DiContainer {
@@ -84,6 +85,20 @@ public class DiContainer {
     return beans.containsKey(clazz);
   }
 
+  /**
+   * Classes found by the scan without conditions; empty before {@link DiApplication#load()}.
+   */
+  public Set<Class<?>> scannedClasses() {
+    return classes == null ? Set.of() : Set.copyOf(classes);
+  }
+
+  /**
+   * Every registered key, a snapshot.
+   */
+  public Set<Class<?>> beanTypes() {
+    return Set.copyOf(beans.keySet());
+  }
+
   public void registerSingleton(Object bean, Class<?> as) {
     if (!beans.containsKey(as)) {
       BeanData beanData = new BeanData(as, this);
@@ -95,6 +110,17 @@ public class DiContainer {
     injectBeanInStaticFields(as);
 
     application.getEventHandler().handleEvent(new BeanConstructedEvent(bean));
+  }
+
+  /**
+   * A singleton created by {@code factory} on the first injection or lookup, never by the eager pass over singletons.
+   */
+  public <T> void registerLazy(Class<T> type, Supplier<? extends T> factory) {
+    BeanData beanData = new BeanData(type, this);
+    beanData.setFactory(factory);
+
+    beans.put(type, beanData);
+    compatibleBeans.clear();
   }
 
   public void registerReference(Object bean, Class<?> as) {
@@ -710,7 +736,7 @@ public class DiContainer {
     beans.forEach((clazz, data) -> {
       if (!data.getScope().equals(BeanScope.SINGLETON)) return;
 
-      if (!data.isAnnotationPresent(Lazy.class)) {
+      if (!data.isAnnotationPresent(Lazy.class) && data.getFactory() == null) {
         createOrGet(clazz);
       }
     });
@@ -725,7 +751,9 @@ public class DiContainer {
   private <T> T create0(Class<T> clazz) {
     BeanData data = beans.get(clazz);
 
-    T instance = application.getBeanConstructors().construct(clazz, data);
+    T instance = data.getFactory() != null
+                 ? clazz.cast(data.getFactory().get())
+                 : application.getBeanConstructors().construct(clazz, data);
 
     if (data.getScope().equals(BeanScope.SINGLETON)) { //todo catch by events
       ((SingletonBeanProvider) getBeanProvider(BeanScope.SINGLETON)).set(clazz, instance);

@@ -109,6 +109,12 @@
             <version>${revision}</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>ru.cwcode.tkach.minedi</groupId>
+            <artifactId>Starters</artifactId>
+            <version>${revision}</version>
+            <scope>compile</scope>
+        </dependency>
 
         <dependency>
             <groupId>ru.cwcode.tkach.config</groupId>

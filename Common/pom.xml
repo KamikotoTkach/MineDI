@@ -29,19 +29,22 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>ru.cwcode.tkach.fork.revxrsal</groupId>
-            <artifactId>asm-invoke-util</artifactId>
-            <version>1.1</version>
-        </dependency>
-        <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm</artifactId>
-            <version>9.7</version>
+            <version>9.9.1</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm-commons</artifactId>
-            <version>9.7</version>
+            <version>9.9.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- after ASM: it bundles an older org.objectweb.asm that would shadow ASM of the platform in tests -->
+        <dependency>
+            <groupId>ru.cwcode.tkach.fork.revxrsal</groupId>
+            <artifactId>asm-invoke-util</artifactId>
+            <version>1.1</version>
         </dependency>
     </dependencies>
 

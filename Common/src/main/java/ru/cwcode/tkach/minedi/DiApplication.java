@@ -150,6 +150,7 @@ public class DiApplication {
   public void start() {
     if(!isLoaded) load();
     logger.info("Starting MineDI");
+    List.copyOf(extensions).forEach(extension -> extension.onBeforeStart(this));
     container.resolveConditions();
     container.registerBeans();
     

@@ -2,6 +2,7 @@ package ru.cwcode.tkach.minedi.condition;
 
 import ru.cwcode.tkach.minedi.exception.BeanDefinitionException;
 import ru.cwcode.tkach.minedi.scanner.ClassIndex;
+import ru.cwcode.tkach.minedi.scanner.PluginJar;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -23,15 +24,19 @@ public interface ConditionSource {
    * Suppliers are read on the first lookup: on Velocity the plugin id is not known while the plugin is constructed.
    */
   static ConditionSource ofJar(Supplier<String> owner, Supplier<File> jar, String packageName, ClassLoader loader) {
+    return of(new PluginJar(owner, jar, packageName, loader));
+  }
+
+  static ConditionSource of(PluginJar pluginJar) {
     return new ConditionSource() {
       @Override
       public String owner() {
-        return owner.get();
+        return pluginJar.owner();
       }
 
       @Override
       public List<Class<?>> definitionClasses() {
-        ClassIndex index = ClassIndex.ofJar(jar.get(), packageName);
+        ClassIndex index = pluginJar.index();
         List<Class<?>> classes = new ArrayList<>();
 
         for (ClassIndex.Entry entry : index.entries()) {
@@ -44,7 +49,7 @@ public interface ConditionSource {
           }
 
           try {
-            classes.add(Class.forName(entry.name(), false, loader));
+            classes.add(Class.forName(entry.name(), false, pluginJar.loader()));
           } catch (ClassNotFoundException e) {
             throw new BeanDefinitionException("Cannot load condition class " + entry.name() + ": " + e);
           }
@@ -55,7 +60,7 @@ public interface ConditionSource {
 
       @Override
       public String toString() {
-        return "plugin " + owner.get();
+        return pluginJar.toString();
       }
     };
   }

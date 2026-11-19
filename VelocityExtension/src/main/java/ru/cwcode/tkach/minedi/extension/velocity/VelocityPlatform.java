@@ -3,6 +3,7 @@ package ru.cwcode.tkach.minedi.extension.velocity;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.PluginContainer;
+import com.velocitypowered.api.plugin.meta.PluginDependency;
 import com.velocitypowered.api.proxy.ProxyServer;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -21,13 +22,21 @@ import ru.cwcode.tkach.minedi.extension.velocity.event.PluginDisableEvent;
 import ru.cwcode.tkach.minedi.extension.velocity.event.PluginEnableEvent;
 import ru.cwcode.tkach.minedi.extension.velocity.logger.VelocityLogger;
 import ru.cwcode.tkach.minedi.logging.Log;
+import ru.cwcode.tkach.minedi.scanner.PluginJar;
+import ru.cwcode.tkach.minedi.starter.StarterContext;
+import ru.cwcode.tkach.minedi.starter.StarterRegistry;
 
 import java.io.File;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class VelocityPlatform {
+  private static final AtomicBoolean BUILTIN_STARTERS = new AtomicBoolean();
+
   @Getter
   protected DiApplication diApplication;
   @Getter
@@ -48,8 +57,10 @@ public abstract class VelocityPlatform {
                              // приходится делать вот такой трюк. (регаются только declared методы,
                              // а мы в абстрактном классе так-то)
     // read lazily: the server and the plugin id are injected after this constructor
-    ConditionRegistry.GLOBAL.addSource(ConditionSource.ofJar(this::getPluginId, this::getPluginFile,
-                                                             getClass().getPackageName(), getClass().getClassLoader()));
+    PluginJar pluginJar = new PluginJar(this::getPluginId, this::getPluginFile, getClass().getPackageName(), getClass().getClassLoader());
+    ConditionRegistry.GLOBAL.addSource(ConditionSource.of(pluginJar));
+    StarterRegistry.GLOBAL.addSource(pluginJar);
+    registerBuiltinStarters();
   }
   
   public abstract ProxyServer getServer();
@@ -86,6 +97,7 @@ public abstract class VelocityPlatform {
     ymlConfigManager = new YmlConfigManager(getConfigPlatform(), new ConfigCreator(diApplication));
     ymlRepositoryManager = new YmlRepositoryManager(ymlConfigManager);
     ymlConfigManager.addReplaceListener(new DiConfigReplaceListener(diApplication));
+    diApplication.registerExtension(new ConfigMapperExtension(ymlConfigManager));
 
     ymlConfigManager.mapper().getMapper().setInjectableValues(new DiInjectableValues(diApplication));
     
@@ -114,7 +126,9 @@ public abstract class VelocityPlatform {
       runnable.run();
       return true;
     });
-    
+
+    applyStarters();
+
     diApplication.start();
     
     diApplication.getEventHandler().handleEvent(new PluginEnableEvent());
@@ -134,6 +148,35 @@ public abstract class VelocityPlatform {
     diApplication.getEventHandler().handleEvent(new PluginDisableEvent());
   }
   
+  /**
+   * Required dependencies first, then optional ones, each group in declaration order.
+   */
+  private void applyStarters() {
+    List<String> dependencies = getPluginContainer().getDescription().getDependencies().stream()
+                                                    .sorted(Comparator.comparing(PluginDependency::isOptional))
+                                                    .map(PluginDependency::getId)
+                                                    .toList();
+
+    StarterContext context = new StarterContext(diApplication, getPluginId(), getDataDirectory().toFile(),
+                                                getClass().getClassLoader(), this);
+    StarterRegistry.GLOBAL.apply(context, dependencies, id -> getServer().getPluginManager().isLoaded(id));
+  }
+
+  private static void registerBuiltinStarters() {
+    if (!BUILTIN_STARTERS.compareAndSet(false, true)) return;
+
+    StarterRegistry.GLOBAL.addSource(new PluginJar(() -> "minedi", VelocityPlatform::mineDiJar, "ru.cwcode.tkach.minedi.starter",
+                                                   VelocityPlatform.class.getClassLoader()));
+  }
+
+  private static File mineDiJar() {
+    try {
+      return new File(VelocityPlatform.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+    } catch (URISyntaxException e) {
+      throw new IllegalStateException("Cannot locate the MineDI jar", e);
+    }
+  }
+
   protected void onPrePluginLoad() {
    
   }

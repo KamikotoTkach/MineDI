@@ -53,7 +53,7 @@ public class JarClassScanner implements ClassScanner {
 
     for (ClassIndex.Entry entry : index.entries()) {
       String name = entry.name();
-      if (ClassIndex.isPackageInfo(name)) continue;
+      if (ClassIndex.isPackageInfo(name) || index.isStarterOrNested(name)) continue;
 
       List<String> conditions = index.conditionsOf(name);
 

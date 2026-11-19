@@ -5,4 +5,5 @@ libraries:
 version: '${project.version}'
 api-version: '1.16'
 depend: ["CWCommands", "CWConfig"]
-softdepend: ["IPMC", "CWConfigWebEditor", "PlaceholderAPI", "ProtocolLib"]
+# packetevents, LuckPerms, RefreshMenu: classes of the built-in starters (Starters module)
+softdepend: ["IPMC", "CWConfigWebEditor", "PlaceholderAPI", "ProtocolLib", "packetevents", "LuckPerms", "RefreshMenu"]

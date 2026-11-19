@@ -9,6 +9,8 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import ru.cwcode.tkach.minedi.annotation.Conditional;
 import ru.cwcode.tkach.minedi.annotation.DefineCondition;
+import ru.cwcode.tkach.minedi.annotation.Starter;
+import ru.cwcode.tkach.minedi.annotation.Starters;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,13 +27,15 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 /**
- * What the scanner needs to know before loading a class, read from bytecode: its {@link Conditional} and whether it
- * declares {@link DefineCondition} methods.
+ * What the scanner needs to know before loading a class, read from bytecode: its {@link Conditional}, whether it
+ * declares {@link DefineCondition} methods and which plugins it is a {@link Starter} for.
  */
 public final class ClassIndex {
   static final String PACKAGE_INFO = "package-info";
   private static final String CONDITIONAL = Type.getDescriptor(Conditional.class);
   private static final String DEFINE_CONDITION = Type.getDescriptor(DefineCondition.class);
+  private static final String STARTER = Type.getDescriptor(Starter.class);
+  private static final String STARTERS = Type.getDescriptor(Starters.class);
 
   private final Map<String, Entry> entries;
 
@@ -95,6 +99,25 @@ public final class ClassIndex {
     return className.endsWith("." + PACKAGE_INFO) || className.equals(PACKAGE_INFO);
   }
 
+  /**
+   * A starter and the classes nested in it are loaded only for a consumer that depends on its plugin, never by a scan.
+   */
+  public boolean isStarterOrNested(String className) {
+    if (isStarter(className)) return true;
+
+    int nested = className.indexOf('$');
+    while (nested > 0) {
+      if (isStarter(className.substring(0, nested))) return true;
+      nested = className.indexOf('$', nested + 1);
+    }
+    return false;
+  }
+
+  private boolean isStarter(String className) {
+    Entry entry = entries.get(className);
+    return entry != null && !entry.starterPlugins().isEmpty();
+  }
+
   private void addCondition(List<String> conditions, String className) {
     Entry entry = entries.get(className);
     if (entry != null && entry.condition() != null) conditions.add(entry.condition());
@@ -110,7 +133,7 @@ public final class ClassIndex {
 
     ClassReader reader;
     try {
-      reader = new ClassReader(withReadableVersion(bytes));
+      reader = new ClassReader(bytes);
     } catch (IllegalArgumentException e) {
       return null; // a class file version ASM does not know: the regular loader reports it
     }
@@ -121,30 +144,20 @@ public final class ClassIndex {
     } catch (IllegalArgumentException e) {
       return null;
     }
-    return new Entry(visitor.name.replace('/', '.'), visitor.condition, visitor.definesConditions);
+    return new Entry(visitor.name.replace('/', '.'), visitor.condition, visitor.definesConditions, List.copyOf(visitor.starterPlugins));
   }
 
   /**
-   * ASM refuses class files newer than it knows (plugins are built for Java 25, our ASM is older). Only the header,
-   * annotations and method declarations are read here, whose format has not changed, so a copy claims Java 17.
+   * @param starterPlugins values of {@link Starter#plugin()} on the class, empty when it is not a starter
    */
-  private static byte[] withReadableVersion(byte[] bytes) {
-    int major = ((bytes[6] & 0xFF) << 8) | (bytes[7] & 0xFF);
-    if (major <= Opcodes.V17) return bytes;
-
-    byte[] copy = bytes.clone();
-    copy[6] = 0;
-    copy[7] = (byte) Opcodes.V17;
-    return copy;
-  }
-
-  public record Entry(String name, @Nullable String condition, boolean definesConditions) {
+  public record Entry(String name, @Nullable String condition, boolean definesConditions, List<String> starterPlugins) {
   }
 
   private static final class EntryVisitor extends ClassVisitor {
     String name;
     String condition;
     boolean definesConditions;
+    final List<String> starterPlugins = new ArrayList<>();
 
     EntryVisitor() {
       super(Opcodes.ASM9);
@@ -157,12 +170,35 @@ public final class ClassIndex {
 
     @Override
     public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+      if (STARTER.equals(descriptor)) return starterVisitor();
+      if (STARTERS.equals(descriptor)) {
+        return new AnnotationVisitor(Opcodes.ASM9) {
+          @Override
+          public AnnotationVisitor visitArray(String name) {
+            return new AnnotationVisitor(Opcodes.ASM9) {
+              @Override
+              public AnnotationVisitor visitAnnotation(String name, String descriptor) {
+                return STARTER.equals(descriptor) ? starterVisitor() : null;
+              }
+            };
+          }
+        };
+      }
       if (!CONDITIONAL.equals(descriptor)) return null;
 
       return new AnnotationVisitor(Opcodes.ASM9) {
         @Override
         public void visit(String name, Object value) {
           if ("value".equals(name)) condition = (String) value;
+        }
+      };
+    }
+
+    private AnnotationVisitor starterVisitor() {
+      return new AnnotationVisitor(Opcodes.ASM9) {
+        @Override
+        public void visit(String name, Object value) {
+          if ("plugin".equals(name)) starterPlugins.add((String) value);
         }
       };
     }
