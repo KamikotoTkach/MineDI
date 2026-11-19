@@ -3,3 +3,5 @@ main: ru.cwcode.minediprobe.paper.MineDIProbe
 version: '1'
 api-version: '1.16'
 depend: [MineDI]
+# a starter in this jar is declared for CWConfig
+softdepend: [CWConfig]

@@ -4,6 +4,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.cwcode.cwutils.compat.AdventureCompats;
 import ru.cwcode.minediprobe.paper.present.PresentIntegration;
+import ru.cwcode.minediprobe.paper.starter.LazyGift;
+import ru.cwcode.minediprobe.paper.starter.MarkProcessor;
+import ru.cwcode.minediprobe.paper.starter.StarterGift;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.annotation.EventListener;
 import ru.cwcode.tkach.minedi.annotation.Service;
@@ -51,6 +54,19 @@ public class ProbeRunner {
     PresentIntegration present = application.get(PresentIntegration.class).orElse(null);
     check("@Conditional package true: Integration bean", present != null, "present=" + present);
     check("@Conditional bean static field", PresentIntegration.greetingService == greetingService, "field=" + PresentIntegration.greetingService);
+
+    MarkedService marked = application.get(MarkedService.class).orElse(null);
+    check("starter bean injected", marked != null && "starter".equals(marked.starterGift.origin), "marked=" + marked);
+    check("manual registration beats starter", marked != null && "manual".equals(marked.manualGift.origin),
+          "origin=" + (marked == null ? "-" : marked.manualGift.origin));
+    check("starter processor saw the annotation", MarkProcessor.marks == 1, "marks=" + MarkProcessor.marks);
+    check("starter of an absent plugin not loaded", !StarterGift.absentStarterLoaded, "");
+    check("starter class is not a scanned component",
+          application.getContainer().findScannedClass("ru.cwcode.minediprobe.paper.starter.ProbeStarter") == null, "");
+    int lazyBefore = LazyGift.created;
+    application.get(LazyGift.class);
+    check("lazy starter bean created on demand", lazyBefore == 0 && LazyGift.created == 1, "before=" + lazyBefore + ", after=" + LazyGift.created);
+    check("mapper customizer before the first config", ProbeConfig.createdAfterCustomizer, "");
 
     check("@Async/@Sync proxied", asyncWorker.getClass() != AsyncWorker.class, asyncWorker.getClass().getName());
     asyncWorker.work();

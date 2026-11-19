@@ -7,24 +7,40 @@ import ru.cwcode.tkach.minedi.scanner.PluginJar;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
- * {@link Starter}s of every MineDI plugin of the server and of MineDI itself, found by reading bytecode. A starter class is
- * loaded only when a consumer depends on its plugin.
+ * {@link Starter}s found by reading bytecode in the jars of every MineDI plugin, of MineDI itself and of every plugin some
+ * consumer depends on (a starter may ship inside the plugin it is for, MineDI or not). A starter class is loaded only when a
+ * consumer depends on its plugin.
  */
 public class StarterRegistry {
   public static final StarterRegistry GLOBAL = new StarterRegistry();
 
   private final List<PluginJar> sources = new CopyOnWriteArrayList<>();
   private final Map<Class<?>, StarterExtension> instances = new ConcurrentHashMap<>();
+  private final Map<String, PluginJar> dependencySources = new ConcurrentHashMap<>();
 
   public void addSource(PluginJar source) {
     if (sources.stream().noneMatch(existing -> existing == source)) sources.add(source);
+  }
+
+  /**
+   * The jar of a plugin a consumer depends on, read once however many consumers depend on it.
+   */
+  public void addDependencySource(String plugin, Supplier<PluginJar> source) {
+    dependencySources.computeIfAbsent(plugin.toLowerCase(Locale.ROOT), key -> {
+      PluginJar jar = source.get();
+      addSource(jar);
+      return jar;
+    });
   }
 
   /**
@@ -56,7 +72,7 @@ public class StarterRegistry {
   }
 
   List<Found> find(String plugin, StarterContext context) {
-    List<Found> found = new ArrayList<>();
+    Map<String, Found> found = new LinkedHashMap<>(); // a jar registered twice (as a MineDI plugin and as a dependency)
 
     for (PluginJar source : sources) {
       ClassIndex index;
@@ -69,13 +85,14 @@ public class StarterRegistry {
 
       for (ClassIndex.Entry entry : index.entries()) {
         if (entry.starterPlugins().stream().anyMatch(plugin::equalsIgnoreCase)) {
-          found.add(new Found(entry.name(), source));
+          found.putIfAbsent(entry.name() + "@" + System.identityHashCode(source.loader()), new Found(entry.name(), source));
         }
       }
     }
 
-    found.sort(Comparator.comparing(Found::className));
-    return found;
+    List<Found> result = new ArrayList<>(found.values());
+    result.sort(Comparator.comparing(Found::className));
+    return result;
   }
 
   private StarterExtension instance(Found found) {

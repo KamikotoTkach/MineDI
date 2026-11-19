@@ -6,4 +6,9 @@ import ru.cwcode.tkach.minedi.common.cwcode.config.ReloadableYmlConfig;
 @Config
 public class ProbeConfig extends ReloadableYmlConfig {
   public int answer = 42;
+  static transient boolean createdAfterCustomizer;
+
+  public ProbeConfig() {
+    createdAfterCustomizer = ProbeMapperCustomizer.applied;
+  }
 }

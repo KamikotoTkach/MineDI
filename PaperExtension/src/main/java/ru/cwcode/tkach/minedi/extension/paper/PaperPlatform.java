@@ -2,6 +2,7 @@ package ru.cwcode.tkach.minedi.extension.paper;
 
 import lombok.Getter;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import ru.cwcode.commands.Command;
@@ -154,6 +155,16 @@ public class PaperPlatform extends Bootstrap {
     List<String> dependencies = new ArrayList<>(getDescription().getDepend());
     dependencies.addAll(getDescription().getSoftDepend());
 
+    for (String dependency : dependencies) {
+      Plugin plugin = Bukkit.getPluginManager().getPlugin(dependency);
+      if (plugin == null || plugin instanceof PaperPlatform || plugin.getClass().getClassLoader() == PaperPlatform.class.getClassLoader()) {
+        continue; // MineDI plugins and MineDI itself are registered already
+      }
+      Class<?> main = plugin.getClass();
+      StarterRegistry.GLOBAL.addDependencySource(plugin.getName(), () -> new PluginJar(plugin::getName, () -> jarOf(main),
+                                                                                        main.getPackageName(), main.getClassLoader()));
+    }
+
     StarterContext context = new StarterContext(diApplication, getName(), getDataFolder(), getClassLoader(), this);
     StarterRegistry.GLOBAL.apply(context, dependencies, name -> Bukkit.getPluginManager().getPlugin(name) != null);
   }
@@ -164,15 +175,15 @@ public class PaperPlatform extends Bootstrap {
   private static void registerBuiltinStarters() {
     if (!BUILTIN_STARTERS.compareAndSet(false, true)) return;
 
-    StarterRegistry.GLOBAL.addSource(new PluginJar(() -> "MineDI", PaperPlatform::mineDiJar, "ru.cwcode.tkach.minedi.starter",
+    StarterRegistry.GLOBAL.addSource(new PluginJar(() -> "MineDI", () -> jarOf(PaperPlatform.class), "ru.cwcode.tkach.minedi.starter",
                                                    PaperPlatform.class.getClassLoader()));
   }
 
-  private static File mineDiJar() {
+  private static File jarOf(Class<?> clazz) {
     try {
-      return new File(PaperPlatform.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+      return new File(clazz.getProtectionDomain().getCodeSource().getLocation().toURI());
     } catch (URISyntaxException e) {
-      throw new IllegalStateException("Cannot locate the MineDI jar", e);
+      throw new IllegalStateException("Cannot locate the jar of " + clazz.getName(), e);
     }
   }
 

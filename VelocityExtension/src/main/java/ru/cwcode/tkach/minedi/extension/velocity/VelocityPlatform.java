@@ -157,6 +157,19 @@ public abstract class VelocityPlatform {
                                                     .map(PluginDependency::getId)
                                                     .toList();
 
+    for (String dependency : dependencies) {
+      getServer().getPluginManager().getPlugin(dependency).ifPresent(container -> {
+        Object instance = container.getInstance().orElse(null);
+        if (instance == null || instance instanceof VelocityPlatform
+            || instance.getClass().getClassLoader() == VelocityPlatform.class.getClassLoader()) {
+          return; // MineDI plugins and MineDI itself are registered already
+        }
+        Class<?> main = instance.getClass();
+        StarterRegistry.GLOBAL.addDependencySource(dependency, () -> new PluginJar(() -> dependency, () -> jarOf(main),
+                                                                                   main.getPackageName(), main.getClassLoader()));
+      });
+    }
+
     StarterContext context = new StarterContext(diApplication, getPluginId(), getDataDirectory().toFile(),
                                                 getClass().getClassLoader(), this);
     StarterRegistry.GLOBAL.apply(context, dependencies, id -> getServer().getPluginManager().isLoaded(id));
@@ -165,15 +178,15 @@ public abstract class VelocityPlatform {
   private static void registerBuiltinStarters() {
     if (!BUILTIN_STARTERS.compareAndSet(false, true)) return;
 
-    StarterRegistry.GLOBAL.addSource(new PluginJar(() -> "minedi", VelocityPlatform::mineDiJar, "ru.cwcode.tkach.minedi.starter",
+    StarterRegistry.GLOBAL.addSource(new PluginJar(() -> "minedi", () -> jarOf(VelocityPlatform.class), "ru.cwcode.tkach.minedi.starter",
                                                    VelocityPlatform.class.getClassLoader()));
   }
 
-  private static File mineDiJar() {
+  private static File jarOf(Class<?> clazz) {
     try {
-      return new File(VelocityPlatform.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+      return new File(clazz.getProtectionDomain().getCodeSource().getLocation().toURI());
     } catch (URISyntaxException e) {
-      throw new IllegalStateException("Cannot locate the MineDI jar", e);
+      throw new IllegalStateException("Cannot locate the jar of " + clazz.getName(), e);
     }
   }
 
