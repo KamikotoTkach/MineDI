@@ -27,6 +27,13 @@ import ru.cwcode.tkach.minedi.data.CollectionRequest;
 import ru.cwcode.tkach.minedi.extensionpoint.BeanOrder;
 import ru.cwcode.tkach.minedi.extensionpoint.ConfigSubtype;
 import ru.cwcode.tkach.minedi.extensionpoint.ExtensionRegistry;
+import ru.cwcode.tkach.minedi.annotation.PlayerScoped;
+import ru.cwcode.tkach.minedi.annotation.Scope;
+import ru.cwcode.tkach.minedi.scope.KeyedMap;
+import ru.cwcode.tkach.minedi.scope.KeyedSet;
+import ru.cwcode.tkach.minedi.scope.PlayerScopeProvider;
+import ru.cwcode.tkach.minedi.scope.PlayerWindows;
+import ru.cwcode.tkach.minedi.scope.ScopedBeans;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -62,12 +69,15 @@ public class DiContainer {
   final Set<String> reportedProblems = ConcurrentHashMap.newKeySet();
   final List<Predicate<Class<?>>> collectionInjectionFilters = new CopyOnWriteArrayList<>();
   List<ScanResult.SubtypeCandidate> subtypeCandidates = List.of();
+  @Getter
+  final PlayerScopeProvider playerScope;
 
   public DiContainer(ClassScanner scanner, DiApplication application) {
     this.scanner = scanner;
     this.application = application;
 
     registerProvider(new SingletonBeanProvider(this));
+    registerProvider(playerScope = new PlayerScopeProvider(this));
 
     registerSingleton(this, this.getClass());
     registerSingleton(application, application.getClass());
@@ -222,11 +232,20 @@ public class DiContainer {
   }
 
   public void populateBeanFields(Object instance) {
+    boolean playerBean = playerScope.isPlayerBean(instance.getClass());
+    if (playerBean) injectPlayer(instance);
+    injectScopeHandles(instance, playerBean);
+
     List<InjectionPoint> points = injectionPoints(instance);
     points.sort(Comparator.comparingInt(point -> Modifier.isFinal(point.field().getModifiers()) ? 0 : 1)); //first final
 
     for (InjectionPoint point : points) {
       BeanData beanData = beans.get(instance.getClass());
+      if (playerBean) {
+        // an instance dies with its player: it must not be remembered for reload updates
+        injectField(instance, point);
+        continue;
+      }
       if (beanData != null && beanData.getScope().equals(BeanScope.SINGLETON) && isPopulated(instance, points)) {
         singletonBeanProvider().set(instance.getClass(), instance);
       }
@@ -248,6 +267,104 @@ public class DiContainer {
     injectCollections(instance);
   }
 
+  private void injectField(Object instance, InjectionPoint point) {
+    Field field = point.field();
+    try {
+      field.setAccessible(true);
+      if (field.get(instance) == null) field.set(instance, provide(point.key()));
+    } catch (IllegalAccessException e) {
+      throw new IllegalStateException("Cannot inject " + describe(field), e);
+    }
+  }
+
+  private boolean isPlayerType(Class<?> type) {
+    Class<?> keyType = application.getPlayerWindows().keyType();
+    return keyType != null && type != Object.class && type.isAssignableFrom(keyType);
+  }
+
+  private Object currentPlayer(Class<?> owner) {
+    UUID id = PlayerScopeProvider.currentPlayer();
+    Object player = id == null ? null : application.getPlayerWindows().key(id);
+    if (player == null) {
+      throw new IllegalStateException("%s: %s is created outside its player's window".formatted(application.getName(), owner.getName()));
+    }
+    return player;
+  }
+
+  /**
+   * The player of a player bean goes into every field of the platform player type (or a supertype of it).
+   */
+  private void injectPlayer(Object instance) {
+    for (Field field : ReflectionUtils.getFields(instance.getClass())) {
+      if (Modifier.isStatic(field.getModifiers()) || !isPlayerType(field.getType())) continue;
+
+      try {
+        field.setAccessible(true);
+        if (field.get(instance) == null) field.set(instance, currentPlayer(instance.getClass()));
+      } catch (IllegalAccessException e) {
+        throw new IllegalStateException("Cannot inject the player into " + describe(field), e);
+      }
+    }
+  }
+
+  private void injectScopeHandles(Object instance, boolean playerBean) {
+    for (Field field : ReflectionUtils.getFields(instance.getClass())) {
+      if (Modifier.isStatic(field.getModifiers())) continue;
+
+      try {
+        field.setAccessible(true);
+        if (field.get(instance) != null) continue;
+
+        Object handle = scopeHandle(field.getType(), field.getGenericType(), describe(field), playerBean);
+        if (handle != null) field.set(instance, handle);
+      } catch (IllegalAccessException e) {
+        throw new IllegalStateException("Cannot inject " + describe(field), e);
+      }
+    }
+  }
+
+  /**
+   * A new {@code PlayerScope<T>}, {@code PlayerMap<V>} or {@code PlayerSet} (or their base classes) for a field or
+   * constructor parameter of that type; null for any other type.
+   */
+  private @Nullable Object scopeHandle(Class<?> raw, java.lang.reflect.Type generic, String requiredBy, boolean playerBean) {
+    PlayerWindows windows = application.getPlayerWindows();
+    try {
+      if (ScopedBeans.class.isAssignableFrom(raw)) {
+        Class<?> element = lastTypeArgument(generic);
+        if (element == null) {
+          throw new BeanDefinitionException("%s: %s needs the bean type, as in PlayerScope<MyPlayerState>".formatted(application.getName(), requiredBy));
+        }
+        if (!playerScope.isPlayerBean(element)) {
+          throw new BeanDefinitionException("%s: %s asks for a scope of %s, which is not a @PlayerScoped bean of this plugin"
+                                              .formatted(application.getName(), requiredBy, element.getName()));
+        }
+        return raw.getDeclaredConstructor(PlayerScopeProvider.class, Class.class).newInstance(playerScope, element);
+      }
+
+      if (KeyedMap.class.isAssignableFrom(raw) || KeyedSet.class.isAssignableFrom(raw)) {
+        if (playerBean) {
+          throw new BeanDefinitionException("%s: %s is a player map or set inside a player bean; a plain field holds that state already"
+                                              .formatted(application.getName(), requiredBy));
+        }
+        return raw.getDeclaredConstructor(PlayerWindows.class).newInstance(windows);
+      }
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Cannot create " + raw.getName() + " for " + requiredBy, e);
+    }
+    return null;
+  }
+
+  private static @Nullable Class<?> lastTypeArgument(java.lang.reflect.Type generic) {
+    if (!(generic instanceof java.lang.reflect.ParameterizedType parameterized)) return null;
+
+    java.lang.reflect.Type[] arguments = parameterized.getActualTypeArguments();
+    java.lang.reflect.Type last = arguments[arguments.length - 1];
+    if (last instanceof Class<?> clazz) return clazz;
+    if (last instanceof java.lang.reflect.ParameterizedType nested && nested.getRawType() instanceof Class<?> clazz) return clazz;
+    return null;
+  }
+
   /**
    * Instances of classes the filter rejects get no injected collections: in a config a null list means "not set".
    */
@@ -260,6 +377,12 @@ public class DiContainer {
    */
   public Object resolveParameter(Parameter parameter, Class<?> owner) {
     String requiredBy = owner.getName() + " constructor parameter " + parameter.getName();
+    boolean playerBean = playerScope.isPlayerBean(owner);
+    if (playerBean && isPlayerType(parameter.getType())) return currentPlayer(owner);
+
+    Object handle = scopeHandle(parameter.getType(), parameter.getParameterizedType(), requiredBy, playerBean);
+    if (handle != null) return handle;
+
     CollectionRequest request = CollectionRequest.of(parameter.getType(), parameter.getParameterizedType(), requiredBy);
     if (request != null) {
       Object collection = resolveCollection(request, requiredBy);
@@ -313,6 +436,7 @@ public class DiContainer {
     Map<Object, Boolean> seen = new IdentityHashMap<>();
     List<Object> found = new ArrayList<>();
     for (Class<?> key : compatibleCandidates(element)) {
+      if (playerScope.isPlayerBean(key)) continue;
       Object bean = provide(key);
       if (bean != null && bean != LAZY_OBJECT && seen.put(bean, Boolean.TRUE) == null) found.add(bean);
     }
@@ -359,6 +483,12 @@ public class DiContainer {
       // a nested or synthetic class of an integration over an absent soft-dependency (Outer$1 of an enum switch)
       application.getLogger().warn("Class {} skipped, it refers to a missing class: {}", clazz.getName(), e.toString());
       return;
+    }
+    if (value.getScope().equals(BeanScope.PLAYER)
+        && (value.isAnnotationPresent(Lazy.class) || clazz.isAnnotationPresent(Scope.class)
+            || !application.getExtensionRegistry().extensionPointsOf(clazz).isEmpty())) {
+      throw new BeanDefinitionException("%s: @PlayerScoped %s cannot also be @Lazy, carry @Scope or implement an extension point"
+                                          .formatted(application.getName(), clazz.getName()));
     }
     if (constructors != 1) {
       throw new BeanDefinitionException(("%s: bean %s declares %d constructors, a bean needs exactly one. "
@@ -848,6 +978,7 @@ public class DiContainer {
   }
 
   private void injectBeanInStaticFields(Class<?> clazz) {
+    if (playerScope.isPlayerBean(clazz)) return;
     application.getLogger().info("Injecting {} in static fields", clazz);
 
     for (Field field : staticFields.getOrDefault(clazz, List.of())) {
@@ -900,6 +1031,9 @@ public class DiContainer {
     }
 
     populateBeanFields(instance);
+
+    // listeners, tasks and placeholders of a player bean are registered once per class, not per instance
+    if (data.getScope().equals(BeanScope.PLAYER)) return instance;
 
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
     if (data.getScope().equals(BeanScope.SINGLETON)) publishExtension(null, instance);

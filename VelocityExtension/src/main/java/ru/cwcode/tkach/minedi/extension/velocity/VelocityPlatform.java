@@ -142,6 +142,9 @@ public abstract class VelocityPlatform {
   }
   
   void onProxyShutdown() {
+    diApplication.getContainer().getPlayerScope().closeAll();
+    diApplication.getContainer().getPlayerScope().detach();
+
     ymlConfigManager.saveAll(options -> options.async(false)
                                                .silent(false));
     

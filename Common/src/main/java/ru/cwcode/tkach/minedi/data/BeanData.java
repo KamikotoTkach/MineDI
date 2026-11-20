@@ -5,6 +5,7 @@ import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
 import ru.cwcode.tkach.minedi.BeanScope;
 import ru.cwcode.tkach.minedi.DiContainer;
+import ru.cwcode.tkach.minedi.annotation.PlayerScoped;
 import ru.cwcode.tkach.minedi.annotation.Scope;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
 
@@ -35,7 +36,11 @@ public class BeanData {
     this.annotations = ReflectionUtils.getAnnotations(clazz);
     
     Scope scopeAnnotation = clazz.getAnnotation(Scope.class);
-    this.scope = scopeAnnotation == null ? BeanScope.SINGLETON : scopeAnnotation.value();
+    if (clazz.isAnnotationPresent(PlayerScoped.class)) {
+      this.scope = BeanScope.PLAYER;
+    } else {
+      this.scope = scopeAnnotation == null ? BeanScope.SINGLETON : scopeAnnotation.value();
+    }
   }
   
   public boolean isAnnotationPresent(Class<? extends Annotation> annotation) {

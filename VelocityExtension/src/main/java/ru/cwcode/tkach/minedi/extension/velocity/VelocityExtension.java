@@ -6,6 +6,7 @@ import ru.cwcode.tkach.minedi.extension.Extension;
 import ru.cwcode.tkach.minedi.extension.velocity.condition.HasPluginCondition;
 import ru.cwcode.tkach.minedi.extension.velocity.processor.ListenerRegisterProcessor;
 import ru.cwcode.tkach.minedi.extension.velocity.processor.PacketListenerAnnotationProcessor;
+import ru.cwcode.tkach.minedi.extension.velocity.scope.PlayerScopedMethodsCheck;
 import ru.cwcode.tkach.minedi.processing.event.Event;
 import ru.cwcode.tkach.minedi.processing.processor.EventProcessor;
 
@@ -21,7 +22,8 @@ public class VelocityExtension implements Extension {
     this.plugin = velocityPlugin;
     
     processors.add(new ListenerRegisterProcessor(this));
-    
+    processors.add(new PlayerScopedMethodsCheck());
+
     if (velocityPlugin.getServer().getPluginManager().getPlugin("ipmc").isPresent()) {
       processors.add(new PacketListenerAnnotationProcessor(this));
     }

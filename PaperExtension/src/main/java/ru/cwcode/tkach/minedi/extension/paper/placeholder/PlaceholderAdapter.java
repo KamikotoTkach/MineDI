@@ -5,6 +5,7 @@ import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import revxrsal.asm.BoundMethodCaller;
 import revxrsal.asm.MethodCaller;
 import ru.cwcode.cwutils.collections.CollectionUtils;
 import ru.cwcode.cwutils.text.StringToObjectParser;
@@ -26,9 +27,21 @@ public class PlaceholderAdapter {
   
   public void register(Object source, Method method, String identifier) {
     method.setAccessible(true);
-    placeholders.computeIfAbsent(identifier, s -> new ArrayList<>())
-                .add(new MethodData(method.getParameterTypes(), MethodCaller.wrap(method).bindTo(source)));
-    
+    BoundMethodCaller caller = MethodCaller.wrap(method).bindTo(source);
+    register(identifier, new MethodData(method.getParameterTypes(), (player, arguments) -> caller.call(arguments)));
+  }
+
+  /**
+   * A placeholder whose method is called on an object chosen per request, such as the instance of a player bean; the
+   * player is never one of the method's parameters.
+   */
+  public void register(String identifier, Class<?>[] parameters, MethodData.Call call) {
+    register(identifier, new MethodData(parameters, call));
+  }
+
+  private void register(String identifier, MethodData data) {
+    placeholders.computeIfAbsent(identifier, s -> new ArrayList<>()).add(data);
+
     extension.addDelayedTask(() -> new PlaceholderExpansion() {
       @Override
       public @NotNull String getIdentifier() {
@@ -71,7 +84,7 @@ public class PlaceholderAdapter {
         Object[] adapt = adapt(player, methodData.parameters(), strParameters);
         if (adapt == null) continue;
         
-        Object call = methodData.boundMethodCaller().call(adapt);
+        Object call = methodData.call().call(player, adapt);
         if (call == null) return null;
         
         return call.toString();

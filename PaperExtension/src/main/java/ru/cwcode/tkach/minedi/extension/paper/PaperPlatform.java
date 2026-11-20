@@ -115,7 +115,11 @@ public class PaperPlatform extends Bootstrap {
   @Override
   public void onDisable() {
     logger.debug("PreDisable");
-    
+
+    // Paper disables plugins before removing players, so no quit event will destroy their state
+    diApplication.getContainer().getPlayerScope().closeAll();
+    diApplication.getContainer().getPlayerScope().detach();
+
     ymlConfigManager.saveAll(options -> options.async(false)
                                                .silent(false));
     Tasks.cancelTasks(this);

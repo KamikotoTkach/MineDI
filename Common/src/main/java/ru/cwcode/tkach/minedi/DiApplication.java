@@ -17,6 +17,7 @@ import ru.cwcode.tkach.minedi.processing.EventHandler;
 import ru.cwcode.tkach.minedi.processing.EventHandlerImpl;
 import ru.cwcode.tkach.minedi.scanner.ClassScanner;
 import ru.cwcode.tkach.minedi.scanner.JarClassScanner;
+import ru.cwcode.tkach.minedi.scope.PlayerWindows;
 
 import java.io.File;
 import java.util.LinkedList;
@@ -46,6 +47,11 @@ public class DiApplication {
    */
   @Setter
   private ExtensionRegistry extensionRegistry = ExtensionRegistry.GLOBAL;
+  /**
+   * Player windows the player scope and player maps follow; {@link PlayerWindows#GLOBAL} by default.
+   */
+  @Setter
+  private PlayerWindows playerWindows = PlayerWindows.GLOBAL;
   private boolean started = false;
 
   boolean isLoaded = false;
@@ -158,6 +164,7 @@ public class DiApplication {
     logger.info("Starting MineDI");
     List.copyOf(extensions).forEach(extension -> extension.onBeforeStart(this));
     container.resolveConditions();
+    container.getPlayerScope().attach(playerWindows);
     container.registerBeans();
     
     extensions.forEach(extension -> extension.onStart(this));
