@@ -18,7 +18,7 @@
     </modules>
 
     <properties>
-        <revision>1.8.0</revision>
+        <revision>1.9.0</revision>
 
         <java.release>16</java.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

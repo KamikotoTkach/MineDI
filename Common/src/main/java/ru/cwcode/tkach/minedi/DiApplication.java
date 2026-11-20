@@ -10,6 +10,7 @@ import ru.cwcode.tkach.minedi.condition.PropertyCondition;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructorImpl;
 import ru.cwcode.tkach.minedi.constructor.BeanConstructors;
 import ru.cwcode.tkach.minedi.extension.Extension;
+import ru.cwcode.tkach.minedi.extensionpoint.ExtensionRegistry;
 import ru.cwcode.tkach.minedi.foreign.ForeignBeanResolver;
 import ru.cwcode.tkach.minedi.logging.Log;
 import ru.cwcode.tkach.minedi.processing.EventHandler;
@@ -40,6 +41,11 @@ public class DiApplication {
   private String name = "MineDI";
   @Setter
   private ForeignBeanResolver foreignResolver = ForeignBeanResolver.NONE;
+  /**
+   * Where extension point implementations and config subtypes are shared; {@link ExtensionRegistry#GLOBAL} by default.
+   */
+  @Setter
+  private ExtensionRegistry extensionRegistry = ExtensionRegistry.GLOBAL;
   private boolean started = false;
 
   boolean isLoaded = false;

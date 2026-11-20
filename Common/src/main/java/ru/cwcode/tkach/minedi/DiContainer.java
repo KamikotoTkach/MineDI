@@ -23,11 +23,19 @@ import ru.cwcode.tkach.minedi.scanner.ClassScanner;
 import ru.cwcode.tkach.minedi.scanner.ScanResult;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
 
+import ru.cwcode.tkach.minedi.data.CollectionRequest;
+import ru.cwcode.tkach.minedi.extensionpoint.BeanOrder;
+import ru.cwcode.tkach.minedi.extensionpoint.ConfigSubtype;
+import ru.cwcode.tkach.minedi.extensionpoint.ExtensionRegistry;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -52,6 +60,8 @@ public class DiContainer {
   final Set<Class<?>> notForeignTypes = ConcurrentHashMap.newKeySet();
   final Map<Class<?>, Set<ForeignImport>> importers = new ConcurrentHashMap<>();
   final Set<String> reportedProblems = ConcurrentHashMap.newKeySet();
+  final List<Predicate<Class<?>>> collectionInjectionFilters = new CopyOnWriteArrayList<>();
+  List<ScanResult.SubtypeCandidate> subtypeCandidates = List.of();
 
   public DiContainer(ClassScanner scanner, DiApplication application) {
     this.scanner = scanner;
@@ -110,6 +120,7 @@ public class DiContainer {
     injectBeanInStaticFields(as);
 
     application.getEventHandler().handleEvent(new BeanConstructedEvent(bean));
+    publishExtension(null, bean);
   }
 
   /**
@@ -146,6 +157,7 @@ public class DiContainer {
     if (beanData == null) return null;
 
     BeanProvider beanProvider = getBeanProvider(beanData.getScope());
+    Object old = singletonBeanProvider().getExisting(clazz);
     if (beanProvider.getBeanClasses().contains(clazz)) {
       application.getEventHandler().handleEvent(new BeanDestroyEvent(beanProvider.provide(beanData)));
     }
@@ -162,6 +174,7 @@ public class DiContainer {
 
     if (beanProvider instanceof SingletonBeanProvider sbp) {
       sbp.set(clazz, bean);
+      publishExtension(old, bean);
     }
 
     injectBeanInStaticFields(clazz);
@@ -231,6 +244,92 @@ public class DiContainer {
         throw new RuntimeException(e);
       }
     }
+
+    injectCollections(instance);
+  }
+
+  /**
+   * Instances of classes the filter rejects get no injected collections: in a config a null list means "not set".
+   */
+  public void addCollectionInjectionFilter(Predicate<Class<?>> accepts) {
+    collectionInjectionFilters.add(accepts);
+  }
+
+  /**
+   * The value of a constructor parameter: a bean, or the beans of a collection parameter.
+   */
+  public Object resolveParameter(Parameter parameter, Class<?> owner) {
+    String requiredBy = owner.getName() + " constructor parameter " + parameter.getName();
+    CollectionRequest request = CollectionRequest.of(parameter.getType(), parameter.getParameterizedType(), requiredBy);
+    if (request != null) {
+      Object collection = resolveCollection(request, requiredBy);
+      if (collection != null) return collection;
+    }
+
+    return createOrGet(parameter.getType());
+  }
+
+  private void injectCollections(Object instance) {
+    if (!collectionInjectionFilters.stream().allMatch(filter -> filter.test(instance.getClass()))) return;
+
+    for (Field field : ReflectionUtils.getFields(instance.getClass())) {
+      if (Modifier.isStatic(field.getModifiers())) continue;
+
+      CollectionRequest request = CollectionRequest.of(field.getType(), field.getGenericType(), describe(field));
+      if (request == null) continue;
+
+      try {
+        field.setAccessible(true);
+        if (field.get(instance) != null) continue;
+
+        Object collection = resolveCollection(request, describe(field));
+        if (collection != null) field.set(instance, collection);
+      } catch (IllegalAccessException e) {
+        throw new IllegalStateException("Cannot inject " + describe(field), e);
+      }
+    }
+  }
+
+  /**
+   * A live view for an extension point, a snapshot of this container's compatible beans for a plugin interface,
+   * null for anything else (a List of strings is not ours to fill).
+   */
+  private @Nullable Object resolveCollection(CollectionRequest request, String requiredBy) {
+    Class<?> element = request.element();
+    ExtensionRegistry registry = application.getExtensionRegistry();
+
+    if (ExtensionRegistry.isExtensionPoint(element)) {
+      if (request.isExtensions()) return registry.view(element, application.getLogger());
+      return request.isSet() ? registry.liveSet(element, application.getLogger()) : registry.liveList(element, application.getLogger());
+    }
+
+    if (request.isExtensions()) {
+      throw new BeanDefinitionException("%s: %s asks for Extensions<%s>, but %s is not annotated with @ExtensionPoint"
+                                          .formatted(application.getName(), requiredBy, element.getName(), element.getSimpleName()));
+    }
+    if (!element.isInterface() && !Modifier.isAbstract(element.getModifiers())) return null;
+    if (!isApplicationType(element)) return null;
+
+    Map<Object, Boolean> seen = new IdentityHashMap<>();
+    List<Object> found = new ArrayList<>();
+    for (Class<?> key : compatibleCandidates(element)) {
+      Object bean = provide(key);
+      if (bean != null && bean != LAZY_OBJECT && seen.put(bean, Boolean.TRUE) == null) found.add(bean);
+    }
+    found.sort(BeanOrder.COMPARATOR);
+
+    return request.isSet() ? Collections.unmodifiableSet(new LinkedHashSet<>(found)) : List.copyOf(found);
+  }
+
+  /**
+   * Makes a singleton visible through the extension points it implements; a recreated one replaces {@code old}.
+   */
+  private void publishExtension(@Nullable Object old, Object bean) {
+    ExtensionRegistry registry = application.getExtensionRegistry();
+    if (registry.extensionPointsOf(bean.getClass()).isEmpty()) return;
+
+    registry.replace(old, bean);
+    application.getLogger().debug("{} published to extension points {}", bean.getClass().getName(), registry.extensionPointsOf(bean.getClass()));
   }
 
   public void registerComponent(Class<?> clazz) {
@@ -285,6 +384,7 @@ public class DiContainer {
     injectOwnStaticFields(instance.getClass());
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
     injectBeanInStaticFields(clazz);
+    publishExtension(null, instance);
   }
 
   /**
@@ -341,6 +441,7 @@ public class DiContainer {
     classes.addAll(result.classes());
     conditionalClasses = result.conditional();
     conditionDefinitions = result.conditionDefinitions();
+    subtypeCandidates = result.subtypes();
     scanLoader = result.loader();
     application.getLogger().info("Founded {} classes, {} more under conditions", classes.size(), conditionalClasses.size());
 
@@ -362,6 +463,9 @@ public class DiContainer {
     }
 
     Map<String, Boolean> results = new HashMap<>();
+    // unguarded subtypes go first: a property(...) condition below may already read a config
+    subtypeCandidates.stream().filter(candidate -> candidate.conditions().isEmpty()).forEach(this::publishSubtype);
+
     List<Class<?>> accepted = new ArrayList<>();
     int skipped = 0;
 
@@ -392,11 +496,47 @@ public class DiContainer {
 
     classes.addAll(accepted);
     scanForStaticFields(accepted);
+
+    for (ScanResult.SubtypeCandidate candidate : subtypeCandidates) {
+      if (candidate.conditions().isEmpty()) continue;
+
+      String failed = candidate.conditions().stream()
+                               .filter(condition -> !results.computeIfAbsent(condition, application.getConditionParser()::parse))
+                               .findFirst()
+                               .orElse(null);
+      if (failed == null) {
+        publishSubtype(candidate);
+      } else {
+        application.getLogger().info("Config subtype {} skipped: condition '{}' is false", candidate.name(), failed);
+      }
+    }
+
     conditionalClasses = List.of();
     conditionDefinitions = List.of();
+    subtypeCandidates = List.of();
 
     if (skipped > 0) {
       application.getLogger().info("{} classes skipped by conditions, {} loaded", skipped, accepted.size());
+    }
+  }
+
+  private void publishSubtype(ScanResult.SubtypeCandidate candidate) {
+    Class<?> type = scanLoader.apply(candidate.name());
+    if (type == null) return;
+
+    List<Class<?>> bases = ExtensionRegistry.configSubtypeBasesOf(type);
+    if (bases.isEmpty()) {
+      application.getLogger().warn("Config subtype {} skipped: no @ConfigSubtypes base among its loaded supertypes", candidate.name());
+      return;
+    }
+
+    for (Class<?> base : bases) {
+      ConfigSubtype subtype = new ConfigSubtype(base, type, candidate.typeName(), application.getName());
+      application.getExtensionRegistry().addSubtype(subtype).ifPresentOrElse(
+        existing -> application.getLogger().warn("Config subtype '{}' of {}: {} of plugin {} is ignored, the name already belongs to {} of plugin {}",
+                                                 subtype.name(), base.getName(), type.getName(), subtype.plugin(),
+                                                 existing.type().getName(), existing.plugin()),
+        () -> application.getLogger().info("Config subtype '{}' of {}: {}", subtype.name(), base.getSimpleName(), type.getName()));
     }
   }
 
@@ -762,6 +902,7 @@ public class DiContainer {
     populateBeanFields(instance);
 
     application.getEventHandler().handleEvent(new BeanConstructedEvent(instance));
+    if (data.getScope().equals(BeanScope.SINGLETON)) publishExtension(null, instance);
 
     return instance;
   }

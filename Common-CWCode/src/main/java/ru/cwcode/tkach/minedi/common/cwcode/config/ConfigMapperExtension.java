@@ -26,8 +26,22 @@ public class ConfigMapperExtension implements Extension {
     this.manager = manager;
   }
 
+  /**
+   * Subtypes published by any plugin reach this mapper: those already known now, later ones as their plugins start.
+   * Configs and repositories get no injected collections: there a null list means "not set in the file".
+   */
   @Override
   public void onRegister(DiApplication application) {
+    application.getExtensionRegistry().onSubtype(subtype -> {
+      manager.registerSubtype(subtype.type(), subtype.name());
+      if (application.isStarted()) {
+        application.getLogger().debug("Config subtype '{}' of plugin {} arrived after start: configs read before see it after reload",
+                                      subtype.name(), subtype.plugin());
+      }
+    });
+
+    application.getContainer().addCollectionInjectionFilter(type -> !Config.class.isAssignableFrom(type)
+                                                                    && !Repository.class.isAssignableFrom(type));
   }
 
   @Override

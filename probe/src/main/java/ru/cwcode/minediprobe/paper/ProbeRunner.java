@@ -3,7 +3,12 @@ package ru.cwcode.minediprobe.paper;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.cwcode.cwutils.compat.AdventureCompats;
+import ru.cwcode.minediprobe.paper.extension.ProbeBadge;
+import ru.cwcode.minediprobe.paper.extension.ProbeCircleIntegration;
+import ru.cwcode.minediprobe.paper.extension.ProbeShape;
 import ru.cwcode.minediprobe.paper.present.PresentIntegration;
+import ru.cwcode.tkach.config.jackson.yaml.YmlConfigManager;
+import ru.cwcode.tkach.minedi.extensionpoint.Extensions;
 import ru.cwcode.minediprobe.paper.starter.LazyGift;
 import ru.cwcode.minediprobe.paper.starter.MarkProcessor;
 import ru.cwcode.minediprobe.paper.starter.StarterGift;
@@ -13,6 +18,7 @@ import ru.cwcode.tkach.minedi.annotation.Service;
 import ru.cwcode.tkach.minedi.extension.paper.event.PluginEnableEvent;
 import ru.cwcode.tkach.minedi.logging.Log;
 
+import java.util.List;
 import java.util.logging.Logger;
 
 @Service
@@ -25,6 +31,9 @@ public class ProbeRunner {
   GreetingService greetingService;
   Repeater repeater;
   AsyncWorker asyncWorker;
+  YmlConfigManager ymlConfigManager;
+  Extensions<ProbeBadge> badges;
+  List<ProbeBadge> liveBadges;
 
   int passed;
   int total;
@@ -68,6 +77,12 @@ public class ProbeRunner {
     check("lazy starter bean created on demand", lazyBefore == 0 && LazyGift.created == 1, "before=" + lazyBefore + ", after=" + LazyGift.created);
     check("mapper customizer before the first config", ProbeConfig.createdAfterCustomizer, "");
 
+    List<String> badgeIds = badges == null ? List.of() : badges.stream().map(ProbeBadge::id).toList();
+    check("Extensions<T> collects own beans by @Priority", badgeIds.equals(List.of("first", "second")), "badges=" + badgeIds);
+    check("List<T> on an extension point is live", liveBadges != null && liveBadges.size() == 2, "live=" + liveBadges);
+    check("@ConfigSubtypes subtype read without registerSubtype", readCircle() instanceof ProbeCircleIntegration circle && circle.radius == 3,
+          "shape=" + readCircle());
+
     check("@Async/@Sync proxied", asyncWorker.getClass() != AsyncWorker.class, asyncWorker.getClass().getName());
     asyncWorker.work();
 
@@ -84,6 +99,14 @@ public class ProbeRunner {
       check("@Repeat in a @Conditional class", present != null && present.ticks > 10, "ticks=" + (present == null ? "-" : present.ticks));
       logger().info("PROBE RESULT " + passed + "/" + total);
     }, 40);
+  }
+
+  private Object readCircle() {
+    try {
+      return ymlConfigManager.jacksonMapper().getMapper().readValue("type: circle\nradius: 3\n", ProbeShape.class);
+    } catch (Exception e) {
+      return e.toString();
+    }
   }
 
   private String describeV26Class() {

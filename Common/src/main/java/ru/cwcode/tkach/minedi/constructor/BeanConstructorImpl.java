@@ -8,6 +8,7 @@ import ru.cwcode.tkach.minedi.utils.CollectionUtils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Parameter;
 import java.util.List;
 
 public class BeanConstructorImpl implements BeanConstructor {
@@ -16,11 +17,11 @@ public class BeanConstructorImpl implements BeanConstructor {
     Constructor<?> constructor = clazz.getDeclaredConstructors()[0];
     constructor.setAccessible(true);
     
-    Class<?>[] parameterTypes = constructor.getParameterTypes();
-    Object[] parameters = new Object[parameterTypes.length];
-    
-    for (int i = 0; i < parameterTypes.length; i++) {
-      parameters[i] = application.getContainer().createOrGet(parameterTypes[i]);
+    Parameter[] declared = constructor.getParameters();
+    Object[] parameters = new Object[declared.length];
+
+    for (int i = 0; i < declared.length; i++) {
+      parameters[i] = application.getContainer().resolveParameter(declared[i], clazz);
     }
 
     try {

@@ -2,13 +2,16 @@ package ru.cwcode.tkach.minedi.scanner;
 
 import lombok.Builder;
 import lombok.Builder.Default;
+import ru.cwcode.tkach.minedi.annotation.ConfigSubtypes;
 import ru.cwcode.tkach.minedi.exception.BeanDefinitionException;
 import ru.cwcode.tkach.minedi.utils.ReflectionUtils;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
@@ -50,12 +53,20 @@ public class JarClassScanner implements ClassScanner {
     Set<String> unconditional = new HashSet<>();
     List<ScanResult.ConditionalClass> conditional = new ArrayList<>();
     List<String> definitions = new ArrayList<>();
+    List<ScanResult.SubtypeCandidate> subtypes = new ArrayList<>();
+    Map<String, Boolean> outsideBases = new HashMap<>();
 
     for (ClassIndex.Entry entry : index.entries()) {
       String name = entry.name();
       if (ClassIndex.isPackageInfo(name) || index.isStarterOrNested(name)) continue;
 
       List<String> conditions = index.conditionsOf(name);
+
+      // the Integration suffix does not apply: reward *Integration classes are exactly such subtypes
+      if (entry.concrete() && entry.typeName() != null && isAllowed(name)
+          && index.extendsConfigSubtypesBase(name, outside -> outsideBases.computeIfAbsent(outside, this::isConfigSubtypesBase))) {
+        subtypes.add(new ScanResult.SubtypeCandidate(name, conditions, entry.typeName()));
+      }
 
       if (entry.definesConditions()) {
         if (!conditions.isEmpty()) {
@@ -84,7 +95,23 @@ public class JarClassScanner implements ClassScanner {
                           name -> {
                             Set<Class<?>> loaded = ReflectionUtils.loadClasses(Set.of(name), classLoader, onFailure);
                             return loaded.isEmpty() ? null : loaded.iterator().next();
-                          });
+                          },
+                          subtypes);
+  }
+
+  /**
+   * A supertype from another jar (a dependency): loaded without initialization; one that cannot be loaded belongs to
+   * an absent soft-dependency and is not a base.
+   */
+  private boolean isConfigSubtypesBase(String className) {
+    if (className.startsWith("java.") || className.startsWith("javax.")) return false;
+
+    try {
+      ClassLoader loader = classLoader != null ? classLoader : getClass().getClassLoader();
+      return Class.forName(className, false, loader).isAnnotationPresent(ConfigSubtypes.class);
+    } catch (ClassNotFoundException | LinkageError e) {
+      return false;
+    }
   }
 
   private boolean isAllowed(String className) {

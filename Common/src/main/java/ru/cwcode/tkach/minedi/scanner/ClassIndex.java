@@ -7,6 +7,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import ru.cwcode.tkach.minedi.annotation.ConfigSubtypes;
 import ru.cwcode.tkach.minedi.annotation.Conditional;
 import ru.cwcode.tkach.minedi.annotation.DefineCondition;
 import ru.cwcode.tkach.minedi.annotation.Starter;
@@ -16,13 +17,18 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -36,6 +42,8 @@ public final class ClassIndex {
   private static final String DEFINE_CONDITION = Type.getDescriptor(DefineCondition.class);
   private static final String STARTER = Type.getDescriptor(Starter.class);
   private static final String STARTERS = Type.getDescriptor(Starters.class);
+  private static final String CONFIG_SUBTYPES = Type.getDescriptor(ConfigSubtypes.class);
+  private static final String JSON_TYPE_NAME = "/jackson/annotation/JsonTypeName;";
 
   private final Map<String, Entry> entries;
 
@@ -144,13 +152,45 @@ public final class ClassIndex {
     } catch (IllegalArgumentException e) {
       return null;
     }
-    return new Entry(visitor.name.replace('/', '.'), visitor.condition, visitor.definesConditions, List.copyOf(visitor.starterPlugins));
+    return new Entry(visitor.name.replace('/', '.'), visitor.condition, visitor.definesConditions, List.copyOf(visitor.starterPlugins),
+                     visitor.supertypes, visitor.concrete, visitor.configSubtypesBase, visitor.typeName);
   }
 
   /**
-   * @param starterPlugins values of {@link Starter#plugin()} on the class, empty when it is not a starter
+   * Whether a concrete class with {@code @JsonTypeName} extends a {@link ConfigSubtypes} base. Supertypes in this jar
+   * are followed through the index, the first one outside it is asked through {@code outside}.
    */
-  public record Entry(String name, @Nullable String condition, boolean definesConditions, List<String> starterPlugins) {
+  public boolean extendsConfigSubtypesBase(String className, Predicate<String> outside) {
+    Set<String> seen = new HashSet<>();
+    Deque<String> queue = new ArrayDeque<>();
+    Entry start = entries.get(className);
+    if (start == null) return false;
+    queue.addAll(start.supertypes());
+
+    while (!queue.isEmpty()) {
+      String current = queue.poll();
+      if (!seen.add(current)) continue;
+
+      Entry entry = entries.get(current);
+      if (entry == null) {
+        if (outside.test(current)) return true;
+        continue;
+      }
+      if (entry.configSubtypesBase()) return true;
+      queue.addAll(entry.supertypes());
+    }
+    return false;
+  }
+
+  /**
+   * @param starterPlugins     values of {@link Starter#plugin()} on the class, empty when it is not a starter
+   * @param supertypes         the superclass (unless {@code Object}) and the interfaces
+   * @param concrete           neither an interface nor abstract
+   * @param configSubtypesBase annotated with {@link ConfigSubtypes}
+   * @param typeName           the value of a Jackson {@code @JsonTypeName}, in any (relocated) package
+   */
+  public record Entry(String name, @Nullable String condition, boolean definesConditions, List<String> starterPlugins,
+                      List<String> supertypes, boolean concrete, boolean configSubtypesBase, @Nullable String typeName) {
   }
 
   private static final class EntryVisitor extends ClassVisitor {
@@ -158,6 +198,10 @@ public final class ClassIndex {
     String condition;
     boolean definesConditions;
     final List<String> starterPlugins = new ArrayList<>();
+    List<String> supertypes = List.of();
+    boolean concrete;
+    boolean configSubtypesBase;
+    String typeName;
 
     EntryVisitor() {
       super(Opcodes.ASM9);
@@ -166,10 +210,30 @@ public final class ClassIndex {
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
       this.name = name;
+      this.concrete = (access & (Opcodes.ACC_INTERFACE | Opcodes.ACC_ABSTRACT)) == 0;
+
+      List<String> found = new ArrayList<>();
+      if (superName != null && !superName.equals("java/lang/Object")) found.add(superName.replace('/', '.'));
+      if (interfaces != null) {
+        for (String implemented : interfaces) found.add(implemented.replace('/', '.'));
+      }
+      this.supertypes = List.copyOf(found);
     }
 
     @Override
     public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+      if (CONFIG_SUBTYPES.equals(descriptor)) {
+        configSubtypesBase = true;
+        return null;
+      }
+      if (descriptor.endsWith(JSON_TYPE_NAME)) {
+        return new AnnotationVisitor(Opcodes.ASM9) {
+          @Override
+          public void visit(String name, Object value) {
+            if ("value".equals(name) && value instanceof String string && !string.isEmpty()) typeName = string;
+          }
+        };
+      }
       if (STARTER.equals(descriptor)) return starterVisitor();
       if (STARTERS.equals(descriptor)) {
         return new AnnotationVisitor(Opcodes.ASM9) {

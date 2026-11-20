@@ -92,7 +92,7 @@ public class AsyncAnnotationProcessor extends EventProcessor<BeanCreatedEvent> {
     Object[] parameters = new Object[parameterTypes.length];
 
     for (int i = 0; i < parameterTypes.length; i++) {
-      parameters[i] = application.get(parameterTypes[i]).orElseThrow();
+      parameters[i] = application.getContainer().resolveParameter(beanConstructor.getParameters()[i], beanClass);
     }
 
     try {
