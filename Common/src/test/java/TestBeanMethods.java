@@ -7,6 +7,9 @@ import isolated.beanorder.ok.Skipped;
 import org.junit.jupiter.api.Test;
 import ru.cwcode.tkach.minedi.DiApplication;
 import ru.cwcode.tkach.minedi.exception.BeanDefinitionException;
+import ru.cwcode.tkach.minedi.scope.PlayerWindows;
+
+import java.time.Clock;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,6 +20,15 @@ public class TestBeanMethods {
     DiApplication application = new DiApplication(new TestLogger(), new TestClassScanner(CLASSES, packagePrefix));
     application.setName("beans");
     return application;
+  }
+
+  @Test
+  public void beanOfJdkModuleClassStarts() {
+    DiApplication application = application("isolated.jdkbean.");
+    application.setPlayerWindows(new PlayerWindows());
+    application.start();
+
+    assertNotNull(application.get(Clock.class).orElseThrow().instant());
   }
 
   @Test

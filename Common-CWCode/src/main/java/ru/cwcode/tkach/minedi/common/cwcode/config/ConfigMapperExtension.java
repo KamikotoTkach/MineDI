@@ -49,6 +49,8 @@ public class ConfigMapperExtension implements Extension {
     DiContainer container = application.getContainer();
     Set<Class<?>> customizers = new TreeSet<>(Comparator.comparing(Class::getName));
 
+    // a property(...) condition on a customizer reads its config with the mapper not yet customized
+    container.resolveConditionsEarly(ConfigMapperExtension::isCustomizer);
     for (Class<?> scanned : container.scannedClasses()) {
       if (!isCustomizer(scanned)) continue;
       container.registerComponent(scanned);

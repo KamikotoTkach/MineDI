@@ -1,4 +1,6 @@
 import customizer.bad.ConfigDependentCustomizer;
+import customizer.conditional.ConditionalCustomizer;
+import customizer.conditional.SkippedCustomizer;
 import customizer.ok.RecordingCustomizer;
 import customizer.ok.SampleConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,9 +16,12 @@ import ru.cwcode.tkach.minedi.constructor.BeanConstructor;
 import ru.cwcode.tkach.minedi.data.BeanData;
 import ru.cwcode.tkach.minedi.exception.BeanDefinitionException;
 import ru.cwcode.tkach.minedi.logging.Log;
+import ru.cwcode.tkach.minedi.scanner.ClassScanner;
+import ru.cwcode.tkach.minedi.scanner.ScanResult;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -33,7 +38,11 @@ public class TestConfigMapperCustomizer {
   }
 
   DiApplication application(Class<?>... classes) {
-    DiApplication application = new DiApplication(new Log(), () -> Set.of(classes));
+    return application(() -> Set.of(classes));
+  }
+
+  DiApplication application(ClassScanner scanner) {
+    DiApplication application = new DiApplication(new Log(), scanner);
     application.setName("customizers");
 
     YmlConfigManager manager = new YmlConfigManager(new TestPlatform(temp), new ConfigCreator(application));
@@ -55,6 +64,38 @@ public class TestConfigMapperCustomizer {
 
     assertTrue(application.get(SampleConfig.class).isPresent());
     assertTrue(SampleConfig.customizedWhenCreated, "the config was read before the mapper was customized");
+  }
+
+  @Test
+  public void conditionalCustomizerRunsWhenItsConditionHolds() {
+    ConditionalCustomizer.applied = false;
+    SkippedCustomizer.applied = false;
+    List<String> loaded = new ArrayList<>();
+    ClassScanner scanner = new ClassScanner() {
+      @Override
+      public Set<Class<?>> scan() {
+        return Set.of();
+      }
+
+      @Override
+      public ScanResult scanResult() {
+        return new ScanResult(Set.of(SampleConfig.class),
+                              List.of(new ScanResult.ConditionalClass(ConditionalCustomizer.class.getName(), List.of("hasClass(java.lang.String)")),
+                                      new ScanResult.ConditionalClass(SkippedCustomizer.class.getName(), List.of("!hasClass(java.lang.String)"))),
+                              List.of(),
+                              name -> {
+                                loaded.add(name);
+                                return name.equals(ConditionalCustomizer.class.getName()) ? ConditionalCustomizer.class : SkippedCustomizer.class;
+                              });
+      }
+    };
+    DiApplication application = application(scanner);
+    application.start();
+
+    assertTrue(ConditionalCustomizer.applied);
+    assertTrue(SampleConfig.customizedWhenCreated, "the conditional customizer ran after the first config");
+    assertFalse(SkippedCustomizer.applied);
+    assertEquals(List.of(ConditionalCustomizer.class.getName()), loaded, "a class with a false condition is never loaded");
   }
 
   @Test

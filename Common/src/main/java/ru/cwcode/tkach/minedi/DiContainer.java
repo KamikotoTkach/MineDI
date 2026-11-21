@@ -309,7 +309,8 @@ public class DiContainer {
 
   private void injectScopeHandles(Object instance, boolean playerBean) {
     for (Field field : ReflectionUtils.getFields(instance.getClass())) {
-      if (Modifier.isStatic(field.getModifiers())) continue;
+      // Type first: setAccessible on a JDK-module class (a Clock bean) throws InaccessibleObjectException.
+      if (Modifier.isStatic(field.getModifiers()) || !isScopeHandleType(field.getType())) continue;
 
       try {
         field.setAccessible(true);
@@ -353,6 +354,10 @@ public class DiContainer {
       throw new IllegalStateException("Cannot create " + raw.getName() + " for " + requiredBy, e);
     }
     return null;
+  }
+
+  private static boolean isScopeHandleType(Class<?> raw) {
+    return ScopedBeans.class.isAssignableFrom(raw) || KeyedMap.class.isAssignableFrom(raw) || KeyedSet.class.isAssignableFrom(raw);
   }
 
   private static @Nullable Class<?> lastTypeArgument(java.lang.reflect.Type generic) {
@@ -579,11 +584,7 @@ public class DiContainer {
     scanForStaticFields(classes);
   }
 
-  /**
-   * Registers the conditions this plugin defines, then loads the conditional classes whose conditions hold.
-   * Runs when the container starts: other plugins and the configs are there by then.
-   */
-  protected void resolveConditions() {
+  private void registerOwnConditions() {
     for (String definition : conditionDefinitions) {
       Class<?> clazz = scanLoader.apply(definition);
       if (clazz == null) {
@@ -591,6 +592,45 @@ public class DiContainer {
       }
       MethodCondition.of(application.getName(), clazz).forEach(application.getConditionParser()::registerOwn);
     }
+    conditionDefinitions = List.of();
+  }
+
+  /**
+   * Resolves early the conditional classes of one kind that an extension needs before {@link #resolveConditions()}
+   * (config mapper customizers run before any config is read). A class is loaded only when its conditions hold, so
+   * foreign types stay safe; loaded classes of the kind join the scanned ones, the rest wait for the normal pass.
+   */
+  public void resolveConditionsEarly(Predicate<Class<?>> kind) {
+    registerOwnConditions();
+
+    List<ScanResult.ConditionalClass> pending = new ArrayList<>();
+    List<Class<?>> accepted = new ArrayList<>();
+    for (ScanResult.ConditionalClass conditional : conditionalClasses) {
+      boolean holds;
+      try {
+        holds = conditional.conditions().stream().allMatch(application.getConditionParser()::parse);
+      } catch (BeanDefinitionException e) {
+        throw new BeanDefinitionException("%s (in @Conditional of %s)".formatted(e.getMessage(), conditional.name()));
+      }
+      Class<?> clazz = holds ? scanLoader.apply(conditional.name()) : null;
+      if (clazz != null && kind.test(clazz)) {
+        accepted.add(clazz);
+      } else {
+        pending.add(conditional);
+      }
+    }
+
+    classes.addAll(accepted);
+    scanForStaticFields(accepted);
+    conditionalClasses = pending;
+  }
+
+  /**
+   * Registers the conditions this plugin defines, then loads the conditional classes whose conditions hold.
+   * Runs when the container starts: other plugins and the configs are there by then.
+   */
+  protected void resolveConditions() {
+    registerOwnConditions();
 
     Map<String, Boolean> results = new HashMap<>();
     // unguarded subtypes go first: a property(...) condition below may already read a config
